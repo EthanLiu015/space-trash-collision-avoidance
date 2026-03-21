@@ -4,10 +4,11 @@ import Navbar from './components/Navbar.jsx'
 import LiveFeed from './components/LiveFeed.jsx'
 import CollisionAlerts from './components/CollisionAlerts.jsx'
 import PredictionAnalysis from './components/PredictionAnalysis.jsx'
+import ManeuverSimulator from './components/ManeuverSimulator.jsx'
 import { fetchActiveSatellites, fetchCollisionRefresh } from './api/satellites.js'
 
 const MAX_GLOBE_OBJECTS = 500
-const MAX_PERSISTED_ALERTS = 50  // Cap to avoid unbounded growth
+const MAX_PERSISTED_ALERTS = 50
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('All Objects')
@@ -16,6 +17,7 @@ export default function App() {
   const [simSpeed, setSimSpeed] = useState(1)
   const [simTime, setSimTime] = useState(new Date())
   const [selectedSat, setSelectedSat] = useState(null)
+  const [selectedAlert, setSelectedAlert] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [satellites, setSatellites] = useState([])
   const [alerts, setAlerts] = useState([])
@@ -30,7 +32,7 @@ export default function App() {
     try {
       const { alerts: fresh, live } = await fetchCollisionRefresh()
       setCollisionDataLive(live)
-      // Persist: merge fresh with previous — once a close approach appears, it stays
+
       setAlerts((prev) => {
         const byId = new Map(prev.map((a) => [a.id, a]))
         for (const a of fresh) byId.set(a.id, a)
@@ -43,7 +45,6 @@ export default function App() {
     }
   }
 
-  // Initial load: satellites + live collision screening (not cached)
   useEffect(() => {
     Promise.all([fetchActiveSatellites(), runCollisionRefresh()])
       .then(([sats]) => {
@@ -53,13 +54,11 @@ export default function App() {
       .finally(() => setLoading(false))
   }, [])
 
-  // Reload close-approach data — interval scales with simSpeed so fast sim gets fresher data
   useEffect(() => {
     const interval = setInterval(runCollisionRefresh, Math.max(500, 2000 / simSpeed))
     return () => clearInterval(interval)
   }, [simSpeed])
 
-  // Simulation clock
   useEffect(() => {
     if (!isPlaying) return
     const interval = setInterval(() => {
@@ -68,24 +67,37 @@ export default function App() {
     return () => clearInterval(interval)
   }, [isPlaying, simSpeed])
 
-  // Filter satellites based on tab and search
-  const filteredSatellites = satellites.filter((sat) => {
-    if (activeTab === 'Active Satellites') return sat.type === 'active'
-    if (activeTab === 'Debris') return sat.type === 'debris'
-    return true
-  }).filter((sat) => {
-    if (searchQuery === '') return true
-    const q = searchQuery.toLowerCase().trim()
-    return (sat.id ?? '').toLowerCase().includes(q) || String(sat.norad ?? '').includes(q)
-  })
+  useEffect(() => {
+    if (!selectedAlert && alerts.length > 0) {
+      setSelectedAlert(alerts[0])
+      return
+    }
 
-  // Cap what's rendered on the globe for performance.
-  // For "All Objects", sample up to MAX_GLOBE_OBJECTS of each type so all three are visually distinct.
+    if (selectedAlert) {
+      const updatedMatch = alerts.find((a) => a.id === selectedAlert.id)
+      if (updatedMatch) {
+        setSelectedAlert(updatedMatch)
+      }
+    }
+  }, [alerts, selectedAlert])
+
+  const filteredSatellites = satellites
+    .filter((sat) => {
+      if (activeTab === 'Active Satellites') return sat.type === 'active'
+      if (activeTab === 'Debris') return sat.type === 'debris'
+      return true
+    })
+    .filter((sat) => {
+      if (searchQuery === '') return true
+      const q = searchQuery.toLowerCase().trim()
+      return (sat.id ?? '').toLowerCase().includes(q) || String(sat.norad ?? '').includes(q)
+    })
+
   const globeSatellites = (() => {
     if (activeTab !== 'All Objects') return filteredSatellites.slice(0, MAX_GLOBE_OBJECTS)
-    const active = filteredSatellites.filter(s => s.type === 'active').slice(0, MAX_GLOBE_OBJECTS)
-    const debris = filteredSatellites.filter(s => s.type === 'debris').slice(0, MAX_GLOBE_OBJECTS)
-    const decaying = filteredSatellites.filter(s => s.type === 'decaying').slice(0, MAX_GLOBE_OBJECTS)
+    const active = filteredSatellites.filter((s) => s.type === 'active').slice(0, MAX_GLOBE_OBJECTS)
+    const debris = filteredSatellites.filter((s) => s.type === 'debris').slice(0, MAX_GLOBE_OBJECTS)
+    const decaying = filteredSatellites.filter((s) => s.type === 'decaying').slice(0, MAX_GLOBE_OBJECTS)
     return [...active, ...debris, ...decaying]
   })()
 
@@ -99,13 +111,12 @@ export default function App() {
 
   return (
     <div className="h-screen w-screen flex flex-col bg-space-900 overflow-hidden">
-      {/* Navbar */}
       <Navbar
         activeTab={activeTab}
         onTabChange={setActiveTab}
         simTime={simTime}
         isPlaying={isPlaying}
-        onPlayPause={() => setIsPlaying(p => !p)}
+        onPlayPause={() => setIsPlaying((p) => !p)}
         onStepForward={handleStepForward}
         onStepBack={handleStepBack}
         simSpeed={simSpeed}
@@ -113,9 +124,7 @@ export default function App() {
         onSearch={setSearchQuery}
       />
 
-      {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left: Live Feed */}
         <LiveFeed
           alerts={alerts}
           objectCount={satellites.length}
@@ -126,16 +135,16 @@ export default function App() {
           simTime={simTime}
         />
 
-        {/* Center: Globe */}
         <div className="flex-1 flex flex-col overflow-hidden relative">
           <div className="flex-1 relative">
-            {/* Globe background gradient */}
             <div className="absolute inset-0 bg-gradient-to-br from-space-800 to-space-900" />
+
             {loading && (
               <div className="absolute inset-0 flex items-center justify-center z-10 text-slate-400 text-sm">
                 Loading satellite data...
               </div>
             )}
+
             <Globe
               satellites={globeSatellites}
               alerts={alerts}
@@ -146,42 +155,65 @@ export default function App() {
               activeTab={activeTab}
             />
 
-            {/* Overlay: selected satellite info */}
             {selectedSat && (
               <div className="absolute top-3 left-3 bg-space-800/90 border border-blue-800 rounded p-3 text-xs backdrop-blur-sm max-w-48">
                 <div className="flex items-center justify-between mb-1">
                   <span className="font-bold text-blue-300">{selectedSat.id}</span>
-                  <button onClick={() => setSelectedSat(null)} className="text-slate-500 hover:text-white ml-3">&#10005;</button>
+                  <button
+                    onClick={() => setSelectedSat(null)}
+                    className="text-slate-500 hover:text-white ml-3"
+                  >
+                    &#10005;
+                  </button>
                 </div>
                 <div className="space-y-0.5 text-slate-400">
-                  <div>Type: <span className={selectedSat.type === 'debris' ? 'text-red-400' : 'text-green-400'}>{selectedSat.type}</span></div>
-                  <div>Altitude: <span className="text-slate-200">{selectedSat.altitude} km</span></div>
-                  <div>Inclination: <span className="text-slate-200">{selectedSat.inclination}&deg;</span></div>
-                  <div>RAAN: <span className="text-slate-200">{selectedSat.raan}&deg;</span></div>
+                  <div>
+                    Type:{' '}
+                    <span className={selectedSat.type === 'debris' ? 'text-red-400' : 'text-green-400'}>
+                      {selectedSat.type}
+                    </span>
+                  </div>
+                  <div>
+                    Altitude: <span className="text-slate-200">{selectedSat.altitude} km</span>
+                  </div>
+                  <div>
+                    Inclination: <span className="text-slate-200">{selectedSat.inclination}&deg;</span>
+                  </div>
+                  <div>
+                    RAAN: <span className="text-slate-200">{selectedSat.raan}&deg;</span>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Globe legend */}
             <div className="absolute bottom-3 left-3 flex gap-3 text-xs text-slate-500">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> Active</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> Debris</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-500 inline-block" /> Decaying</span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> Active
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> Debris
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2 h-2 rounded-full bg-orange-500 inline-block" /> Decaying
+              </span>
               {!loading && <span>{filteredSatellites.length.toLocaleString()} objects</span>}
             </div>
 
-            {/* Controls hint */}
             <div className="absolute bottom-3 right-3 text-xs text-slate-600">
               Drag to rotate &middot; Scroll to zoom
             </div>
           </div>
 
-          {/* Bottom: Prediction Analysis */}
-          <PredictionAnalysis selectedAlert={alerts[0]} />
+          <PredictionAnalysis selectedAlert={selectedAlert} />
+          <ManeuverSimulator selectedAlert={selectedAlert} />
         </div>
 
-        {/* Right: Collision Alerts */}
-        <CollisionAlerts alerts={alerts} live={collisionDataLive} />
+        <CollisionAlerts
+          alerts={alerts}
+          live={collisionDataLive}
+          selectedAlert={selectedAlert}
+          onSelectAlert={setSelectedAlert}
+        />
       </div>
     </div>
   )
