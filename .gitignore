@@ -201,8 +201,6 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
-# Large training data (exceeds GitHub 100MB limit; keep locally for retraining)
-python/raw_data/train_data.csv
 
 # Marimo
 marimo/_static/
