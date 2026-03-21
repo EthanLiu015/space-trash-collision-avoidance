@@ -148,13 +148,21 @@ function Satellite({ satellite, isHighlighted, onClick, simSpeed = 60 }) {
   const size = isHighlighted ? 0.025 : 0.015
 
   return (
-    <mesh ref={meshRef} onClick={onClick}>
-      <sphereGeometry args={[size, 8, 8]} />
-      <meshBasicMaterial color={isHighlighted ? '#ffffff' : color} />
+    <group ref={meshRef}>
+      {/* Visible dot */}
+      <mesh>
+        <sphereGeometry args={[size, 8, 8]} />
+        <meshBasicMaterial color={isHighlighted ? '#ffffff' : color} />
+      </mesh>
+      {/* Invisible larger hit target for easier clicking */}
+      <mesh onClick={onClick}>
+        <sphereGeometry args={[0.04, 6, 6]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
       {isHighlighted && (
         <pointLight color={color} intensity={0.5} distance={0.2} />
       )}
-    </mesh>
+    </group>
   )
 }
 
@@ -229,7 +237,7 @@ function SceneContent({ satellites, alerts, selectedSatId, onSelectSat, isPlayin
           <Satellite
             key={sat.id}
             satellite={sat}
-            isHighlighted={selectedSatId === sat.id}
+            isHighlighted={selectedSatId === sat.norad}
             onClick={() => onSelectSat(sat)}
             simSpeed={simSpeed}
           />
