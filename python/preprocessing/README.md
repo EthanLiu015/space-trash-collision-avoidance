@@ -38,3 +38,25 @@ python preprocessing/convert_sgp4.py --format json
 - `processed_data/close_approaches.json` — Pairs within threshold (when `--screen` is used)
 
 **Ephemeris columns:** `norad_id`, `object_name`, `object_type`, `epoch_utc`, `x_km`, `y_km`, `z_km`, `vx_kms`, `vy_kms`, `vz_kms`, `altitude_km`
+
+## realtime_close_approaches.py
+
+Real-time close approach detection with **O(n log n)** spatial indexing (scipy cKDTree). Pairs included: 0.01 km < distance ≤ 5 km (excludes docked/combined objects). Default: updates every 2 seconds.
+
+**Requirements:** `pip install sgp4 scipy`
+
+```bash
+# Default: run every 2 seconds (real-time)
+python preprocessing/realtime_close_approaches.py
+
+# Single run only
+python preprocessing/realtime_close_approaches.py --interval 0
+
+# Custom interval (e.g. every 30 seconds)
+python preprocessing/realtime_close_approaches.py --interval 30
+
+# Limit for testing
+python preprocessing/realtime_close_approaches.py --limit 1000
+```
+
+**Output:** `processed_data/close_approaches_5km.json` (5 km pairs only). Use `-o realtime_close_approaches.json` to override.
