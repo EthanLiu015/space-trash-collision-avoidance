@@ -4,7 +4,7 @@ import Navbar from './components/Navbar.jsx'
 import LiveFeed from './components/LiveFeed.jsx'
 import CollisionAlerts from './components/CollisionAlerts.jsx'
 import PredictionAnalysis from './components/PredictionAnalysis.jsx'
-import { fetchActiveSatellites, fetchCollisionAlerts, fetchCollisionRefresh } from './api/satellites.js'
+import { fetchActiveSatellites, fetchCollisionRefresh } from './api/satellites.js'
 
 const MAX_GLOBE_OBJECTS = 500
 
@@ -69,8 +69,16 @@ export default function App() {
     searchQuery === '' || sat.id.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  // Cap what's rendered on the globe for performance
-  const globeSatellites = filteredSatellites.slice(0, MAX_GLOBE_OBJECTS)
+  // Cap what's rendered on the globe for performance.
+  // For "All Objects", distribute evenly across types so each category is visible.
+  const globeSatellites = (() => {
+    if (activeTab !== 'All Objects') return filteredSatellites.slice(0, MAX_GLOBE_OBJECTS)
+    const perType = Math.floor(MAX_GLOBE_OBJECTS / 3)
+    const active = filteredSatellites.filter(s => s.type === 'active').slice(0, perType)
+    const debris = filteredSatellites.filter(s => s.type === 'debris').slice(0, perType)
+    const decaying = filteredSatellites.filter(s => s.type === 'decaying').slice(0, perType)
+    return [...active, ...debris, ...decaying]
+  })()
 
   const handleStepForward = () => {
     setSimTime((prev) => new Date(prev.getTime() + 60 * 1000))
