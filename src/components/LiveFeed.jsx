@@ -40,7 +40,7 @@ function formatEpochTime(epochUtc) {
   }
 }
 
-export default function LiveFeed({ alerts = [], objectCount = 0, onRefresh, live = false, filter, onFilterChange }) {
+export default function LiveFeed({ alerts = [], objectCount = 0, onRefresh, live = false, filter, onFilterChange, simTime }) {
   const [feedItems, setFeedItems] = useState([])
   const [refreshing, setRefreshing] = useState(false)
   const shownIdsRef = useRef(new Set())
@@ -52,6 +52,7 @@ export default function LiveFeed({ alerts = [], objectCount = 0, onRefresh, live
 
     for (const alert of newAlerts) shownIdsRef.current.add(alert.id)
 
+    const timestamp = simTime ? formatEpochTime(simTime.toISOString()) : formatEpochTime(null)
     const newItems = newAlerts.map((alert) => {
       const type = alertToFeedType(alert)
       return {
@@ -59,12 +60,12 @@ export default function LiveFeed({ alerts = [], objectCount = 0, onRefresh, live
         type,
         icon: feedTypeIcon(type),
         message: `Close approach: ${alert.objectA} / ${alert.objectB} (${alert.closestApproach})`,
-        time: formatEpochTime(alert.epoch_utc),
+        time: timestamp,
         probability: alert.probability,
       }
     })
     setFeedItems((prev) => [...newItems, ...prev].slice(0, MAX_FEED_ITEMS))
-  }, [alerts])
+  }, [alerts, simTime])
 
   const handleRefresh = async () => {
     if (refreshing || !onRefresh) return

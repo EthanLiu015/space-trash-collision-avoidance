@@ -4,7 +4,7 @@ import Navbar from './components/Navbar.jsx'
 import LiveFeed from './components/LiveFeed.jsx'
 import CollisionAlerts from './components/CollisionAlerts.jsx'
 import PredictionAnalysis from './components/PredictionAnalysis.jsx'
-import { fetchActiveSatellites, fetchCollisionAlerts, fetchCollisionRefresh } from './api/satellites.js'
+import { fetchActiveSatellites, fetchCollisionRefresh } from './api/satellites.js'
 
 const MAX_GLOBE_OBJECTS = 500
 const MAX_PERSISTED_ALERTS = 50  // Cap to avoid unbounded growth
@@ -53,11 +53,11 @@ export default function App() {
       .finally(() => setLoading(false))
   }, [])
 
-  // Reload close-approach data every 2 seconds (re-runs screening for fresh results)
+  // Reload close-approach data — interval scales with simSpeed so fast sim gets fresher data
   useEffect(() => {
-    const interval = setInterval(runCollisionRefresh, 2000)
+    const interval = setInterval(runCollisionRefresh, Math.max(500, 2000 / simSpeed))
     return () => clearInterval(interval)
-  }, [])
+  }, [simSpeed])
 
   // Simulation clock
   useEffect(() => {
@@ -116,6 +116,7 @@ export default function App() {
           live={collisionDataLive}
           filter={filter}
           onFilterChange={setFilter}
+          simTime={simTime}
         />
 
         {/* Center: Globe */}
