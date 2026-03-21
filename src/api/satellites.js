@@ -59,32 +59,27 @@ function classifyRisk(probability) {
   return 'LOW'
 }
 
-function addCollisionProbability(pair, thresholdKm = 5) {
-  const scale = Math.max(thresholdKm / 5, 0.1)
-  pair.collision_probability = Math.round(Math.exp(-pair.distance_km / scale) * 1e6) / 1e6
-}
-
 function transformAlert(pair) {
-  if (pair.collision_probability == null) addCollisionProbability(pair)
-  const prob = pair.collision_probability ?? 0
-  const probPct = Math.round(prob * 100)
+  // probability = e^risk from XGBoost model only; no heuristic
+  const prob = pair.collision_probability != null
+    ? Math.round(pair.collision_probability * 1e6) / 1e6
+    : null
 
   // Suggest a maneuver: boost by enough to double the miss distance (min 0.5 km)
   const altChange = Math.max(0.5, pair.distance_km).toFixed(1)
-  // After the maneuver the effective miss distance grows, reducing probability
-  const newProb = prob * Math.exp(-parseFloat(altChange))
-  const riskAfterPct = Math.round(newProb * 100)
+  const newProb = prob != null ? prob * Math.exp(-parseFloat(altChange)) : null
+  const riskAfterManeuver = newProb != null ? Math.round(newProb * 1e6) / 1e6 : null
 
   return {
     id: `${pair.norad_a}_${pair.norad_b}`,
     objectA: pair.object_a,
     objectB: pair.object_b,
-    risk: classifyRisk(prob),
-    probability: probPct,
+    risk: prob != null ? classifyRisk(prob) : 'LOW',
+    probability: prob,
     closestApproach: `${pair.distance_km.toFixed(2)} km`,
     relativeVelocity: pair.relative_velocity_km_s ?? null,
     altitudeChange: parseFloat(altChange),
-    riskAfterManeuver: riskAfterPct,
+    riskAfterManeuver,
     deltaV: parseFloat((parseFloat(altChange) * 1.0).toFixed(1)), // ~1 m/s per km altitude change
     timeToEvent: 3600,             // placeholder; real TCA requires window propagation
     epoch_utc: pair.epoch_utc,

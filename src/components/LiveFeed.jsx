@@ -131,8 +131,8 @@ export default function LiveFeed({ alerts = [], objectCount = 0, onRefresh, live
                 {item.message}
               </div>
               {item.probability != null && (
-                <div className="mt-0.5 text-slate-500 text-[10px]">
-                  Collision prob: {item.probability}%
+                <div className="mt-0.5 text-slate-500 text-[10px] font-mono">
+                  Collision prob: {Number(item.probability).toFixed(6)}
                 </div>
               )}
             </div>
