@@ -144,7 +144,7 @@ function Satellite({ satellite, isHighlighted, onClick, simSpeed = 60 }) {
     if (meshRef.current) meshRef.current.position.set(x, y, z)
   })
 
-  const color = satellite.type === 'debris' ? '#ef4444' : '#3b82f6'
+  const color = satellite.type === 'debris' ? '#ef4444' : satellite.type === 'decaying' ? '#f97316' : '#3b82f6'
   const size = isHighlighted ? 0.025 : 0.015
 
   return (
@@ -209,7 +209,7 @@ function SceneContent({ satellites, alerts, selectedSatId, onSelectSat, isPlayin
           altitude={sat.altitude}
           inclination={sat.inclination}
           raan={sat.raan}
-          color={sat.type === 'debris' ? '#ef444440' : '#3b82f640'}
+          color={sat.type === 'debris' ? '#ef444440' : sat.type === 'decaying' ? '#f9731640' : '#3b82f640'}
         />
       ))}
 
