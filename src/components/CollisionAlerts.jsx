@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 const RISK_STYLES = {
   CRITICAL: 'bg-red-900/30 border-red-600 text-red-400',
@@ -48,10 +48,12 @@ function AlertCard({ alert, onSelect, isSelected }) {
           <span className="text-slate-400">Closest Approach:</span>
           <span className="text-slate-200 font-mono">{alert.closestApproach}</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-slate-400">Relative Velocity:</span>
-          <span className="text-slate-200">{alert.relativeVelocity} km/s</span>
-        </div>
+        {alert.relativeVelocity != null && (
+          <div className="flex justify-between">
+            <span className="text-slate-400">Relative Velocity:</span>
+            <span className="text-slate-200">{alert.relativeVelocity} km/s</span>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -85,16 +87,31 @@ function AvoidanceCard({ alert }) {
   )
 }
 
-export default function CollisionAlerts({ alerts }) {
+export default function CollisionAlerts({ alerts, live = false }) {
   const [selectedAlert, setSelectedAlert] = useState(alerts[0] || null)
+
+  // Sync selected alert when alerts refresh — keep selection if still present, else pick first
+  useEffect(() => {
+    if (alerts.length === 0) {
+      setSelectedAlert(null)
+      return
+    }
+    const stillPresent = selectedAlert && alerts.some((a) => a.id === selectedAlert.id)
+    if (!stillPresent) setSelectedAlert(alerts[0])
+  }, [alerts, selectedAlert])
 
   return (
     <div className="w-72 shrink-0 flex flex-col bg-space-800 border-l border-blue-900/40 overflow-hidden">
       {/* Header */}
       <div className="px-3 py-2 border-b border-blue-900/40 flex items-center justify-between">
         <span className="text-xs font-semibold text-slate-300 tracking-widest uppercase">Collision Alerts</span>
-        <span className="bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-          {alerts.length}
+        <span className="flex items-center gap-2">
+          <span className={`text-[10px] ${live ? 'text-green-400' : 'text-amber-400'}`}>
+            {live ? 'Live' : 'Cached'}
+          </span>
+          <span className="bg-red-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+            {alerts.length}
+          </span>
         </span>
       </div>
 
@@ -116,7 +133,11 @@ export default function CollisionAlerts({ alerts }) {
       {/* Summary footer */}
       <div className="px-3 py-2 border-t border-blue-900/40">
         <div className="text-xs text-slate-500 text-center">
-          Next conjunction screen: <span className="text-blue-400">in 4h 23m</span>
+          {live ? (
+            <>Refreshes every <span className="text-green-400">2s</span></>
+          ) : (
+            <>Run backend for live data</>
+          )}
         </div>
       </div>
     </div>
