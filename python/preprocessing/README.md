@@ -1,5 +1,18 @@
 # Preprocessing Scripts
 
+## download_celestrak.py
+
+Downloads real orbital data from [CelesTrak](https://celestrak.org/) (NORAD/18th Space Defense Squadron) into `raw_data/`:
+- `active_satellites.csv` — Active payloads
+- `decaying.csv` — Last 30 days' launches
+- `debris.csv` — Merged debris from major fragmentation events
+
+**Requirements:** `pip install requests`
+
+```bash
+python preprocessing/download_celestrak.py
+```
+
 ## combine_csvs.py
 
 Merges `active_satellites.csv`, `debris.csv`, and `decaying.csv` into a single CSV with an `OBJECT_TYPE` column (`"Active"`, `"debris"`, or `"decaying"`).

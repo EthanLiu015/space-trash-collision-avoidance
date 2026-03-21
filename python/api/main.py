@@ -5,11 +5,13 @@ Endpoints:
   GET /satellites/active          All objects (pre-computed ephemeris)
   GET /satellites/propagate       Re-propagate all objects to current UTC time
   GET /satellites/{norad_id}      Single object detail by NORAD ID
-  GET /collisions/alerts          Close-approach pairs with collision probability
+  GET /collisions/alerts          Close-approach pairs (5 km, min 0.01 km)
+  GET /collisions/refresh         Re-run close-approach screening (live)
 """
 
 import csv
 import json
+import math
 import sys
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -22,18 +24,23 @@ from fastapi.middleware.cors import CORSMiddleware
 # ---------------------------------------------------------------------------
 # Paths
 # ---------------------------------------------------------------------------
-FASTAPI_DIR = Path(__file__).resolve().parent
-PYTHON_DIR = FASTAPI_DIR.parent
+API_DIR = Path(__file__).resolve().parent
+PYTHON_DIR = API_DIR.parent
 PREPROCESSING_DIR = PYTHON_DIR / "preprocessing"
 PROCESSED_DIR = PYTHON_DIR / "processed_data"
 
 EPHEMERIS_CSV = PROCESSED_DIR / "sgp4_ephemeris.csv"
-CLOSE_APPROACHES_JSON = PROCESSED_DIR / "close_approaches.json"
+CLOSE_APPROACHES_5KM_JSON = PROCESSED_DIR / "close_approaches_5km.json"
 COMBINED_CSV = PROCESSED_DIR / "combined_satellites.csv"
 
-# Add preprocessing dir to path so we can import convert_sgp4
+# Add preprocessing dir to path
 sys.path.insert(0, str(PREPROCESSING_DIR))
-from convert_sgp4 import load_and_propagate, find_close_approaches  # noqa: E402
+from convert_sgp4 import load_and_propagate  # noqa: E402
+from realtime_close_approaches import (  # noqa: E402
+    find_close_approaches_optimized,
+    MIN_DISTANCE_KM,
+    THRESHOLD_KM,
+)
 
 # ---------------------------------------------------------------------------
 # Startup cache
@@ -62,27 +69,57 @@ def _load_ephemeris_csv() -> list[dict]:
     return records
 
 
-def _load_close_approaches() -> dict:
-    with open(CLOSE_APPROACHES_JSON, encoding="utf-8") as f:
-        data = json.load(f)
-    # Attach a simple collision probability to each pair
-    threshold = data.get("threshold_km", 5.0)
-    for pair in data.get("pairs", []):
+def _add_collision_probability(pairs: list[dict], threshold_km: float = THRESHOLD_KM) -> None:
+    """Add exponential decay collision probability to each pair."""
+    scale = max(threshold_km / 5.0, 0.1)
+    for pair in pairs:
         d = pair["distance_km"]
-        # Exponential decay: P=1 at 0 km, falls to ~0 near threshold
-        # characteristic scale = threshold / 5 so P(threshold) ≈ 0.007
-        scale = max(threshold / 5.0, 0.1)
-        pair["collision_probability"] = round(
-            __import__("math").exp(-d / scale), 6
-        )
-    return data
+        pair["collision_probability"] = round(math.exp(-d / scale), 6)
+
+
+def _load_close_approaches_from_file() -> dict | None:
+    """Load from close_approaches_5km.json if it exists."""
+    if not CLOSE_APPROACHES_5KM_JSON.exists():
+        return None
+    try:
+        with open(CLOSE_APPROACHES_5KM_JSON, encoding="utf-8") as f:
+            data = json.load(f)
+        _add_collision_probability(data.get("pairs", []), data.get("threshold_km", THRESHOLD_KM))
+        return data
+    except (json.JSONDecodeError, IOError):
+        return None
+
+
+def _run_close_approach_screening() -> dict:
+    """Run SGP4 propagation + optimized close-approach screening (5 km, min 0.01 km)."""
+    now = datetime.now(timezone.utc)
+    records = load_and_propagate(COMBINED_CSV, ref_time=now)
+    pairs = find_close_approaches_optimized(records, threshold_km=THRESHOLD_KM)
+    # Apply min distance filter (optimized fn already does this, but ensure)
+    pairs = [p for p in pairs if MIN_DISTANCE_KM < p["distance_km"] <= THRESHOLD_KM]
+    _add_collision_probability(pairs)
+    return {
+        "threshold_km": THRESHOLD_KM,
+        "min_distance_km": MIN_DISTANCE_KM,
+        "epoch_utc": now.isoformat(),
+        "objects_screened": len(records),
+        "close_pairs": len(pairs),
+        "pairs": pairs,
+    }
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _cache["ephemeris"] = _load_ephemeris_csv()
     _cache["ephemeris_by_norad"] = {r["norad_id"]: r for r in _cache["ephemeris"]}
-    _cache["close_approaches"] = _load_close_approaches()
+    # Load close approaches: try file first, else run screening on startup
+    data = _load_close_approaches_from_file()
+    if data is None:
+        if COMBINED_CSV.exists():
+            data = _run_close_approach_screening()
+        else:
+            data = {"threshold_km": THRESHOLD_KM, "min_distance_km": MIN_DISTANCE_KM, "epoch_utc": None, "pairs": []}
+    _cache["close_approaches"] = data
     yield
     _cache.clear()
 
@@ -115,35 +152,40 @@ app.add_middleware(
 # ---------------------------------------------------------------------------
 
 @app.get("/satellites/propagate")
-def propagate_satellites(
-    threshold_km: float = Query(default=5.0, ge=0.1, le=100.0),
-):
+def propagate_satellites():
     """
     Re-propagate all objects to the current UTC time using SGP4.
-    Also runs close-approach screening at the new epoch.
-    This is slower than /satellites/active (reads combined CSV + runs SGP4).
+    Also runs optimized close-approach screening (5 km, min 0.01 km).
+    Slower than /satellites/active (~1s for 24k objects).
     """
     if not COMBINED_CSV.exists():
         raise HTTPException(status_code=503, detail="combined_satellites.csv not found")
 
     now = datetime.now(timezone.utc)
     records = load_and_propagate(COMBINED_CSV, ref_time=now)
-    pairs = find_close_approaches(records, threshold_km=threshold_km)
+    pairs = find_close_approaches_optimized(records, threshold_km=THRESHOLD_KM)
+    pairs = [p for p in pairs if MIN_DISTANCE_KM < p["distance_km"] <= THRESHOLD_KM]
+    _add_collision_probability(pairs)
 
-    import math
-    scale = max(threshold_km / 5.0, 0.1)
-    for pair in pairs:
-        pair["collision_probability"] = round(math.exp(-pair["distance_km"] / scale), 6)
+    close_data = {
+        "threshold_km": THRESHOLD_KM,
+        "min_distance_km": MIN_DISTANCE_KM,
+        "pair_count": len(pairs),
+        "pairs": pairs,
+    }
+    # Update in-memory cache for /collisions/alerts
+    _cache["close_approaches"] = {
+        "threshold_km": THRESHOLD_KM,
+        "min_distance_km": MIN_DISTANCE_KM,
+        "epoch_utc": now.isoformat(),
+        "pairs": pairs,
+    }
 
     return {
         "epoch_utc": now.isoformat(),
         "object_count": len(records),
         "objects": records,
-        "close_approaches": {
-            "threshold_km": threshold_km,
-            "pair_count": len(pairs),
-            "pairs": pairs,
-        },
+        "close_approaches": close_data,
     }
 
 
@@ -185,20 +227,37 @@ def get_collision_alerts(
     min_probability: float = Query(default=0.0, ge=0.0, le=1.0),
     max_distance_km: Optional[float] = Query(default=None),
 ):
-    """Return close-approach pairs from the pre-computed screening run."""
+    """Return close-approach pairs (5 km threshold, min 0.01 km, excludes docked objects)."""
     data = _cache.get("close_approaches", {})
     pairs = data.get("pairs", [])
 
     if min_probability > 0:
-        pairs = [p for p in pairs if p["collision_probability"] >= min_probability]
+        pairs = [p for p in pairs if p.get("collision_probability", 0) >= min_probability]
     if max_distance_km is not None:
         pairs = [p for p in pairs if p["distance_km"] <= max_distance_km]
 
     return {
-        "threshold_km": data.get("threshold_km"),
+        "threshold_km": data.get("threshold_km", THRESHOLD_KM),
+        "min_distance_km": data.get("min_distance_km", MIN_DISTANCE_KM),
         "epoch_utc": data.get("epoch_utc"),
         "pair_count": len(pairs),
         "pairs": pairs,
+    }
+
+
+@app.get("/collisions/refresh")
+def refresh_collision_alerts():
+    """Re-run close-approach screening and update the cache."""
+    if not COMBINED_CSV.exists():
+        raise HTTPException(status_code=503, detail="combined_satellites.csv not found")
+    data = _run_close_approach_screening()
+    _cache["close_approaches"] = data
+    return {
+        "threshold_km": data["threshold_km"],
+        "min_distance_km": data["min_distance_km"],
+        "epoch_utc": data["epoch_utc"],
+        "pair_count": len(data["pairs"]),
+        "pairs": data["pairs"],
     }
 
 
