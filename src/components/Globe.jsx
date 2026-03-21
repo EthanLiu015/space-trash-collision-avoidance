@@ -189,6 +189,12 @@ function CollisionWarningMarker({ position }) {
 function SceneContent({ satellites, alerts, selectedSatId, onSelectSat, isPlaying, simSpeed, activeTab }) {
   const { camera } = useThree()
 
+  // DEBUG: log type breakdown whenever satellites or tab changes
+  if (typeof window !== 'undefined') {
+    const counts = satellites.reduce((acc, s) => { acc[s.type] = (acc[s.type] || 0) + 1; return acc }, {})
+    console.log(`[Globe] tab="${activeTab}" satellites:`, counts)
+  }
+
   useEffect(() => {
     camera.position.set(0, 1.5, 3.5)
   }, [camera])
