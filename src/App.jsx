@@ -70,13 +70,13 @@ export default function App() {
   )
 
   // Cap what's rendered on the globe for performance.
-  // For "All Objects", distribute evenly across types so each category is visible.
+  // For "All Objects", show up to MAX_GLOBE_OBJECTS of each type so all three are visually distinct.
+  // For single-type tabs, just slice.
   const globeSatellites = (() => {
     if (activeTab !== 'All Objects') return filteredSatellites.slice(0, MAX_GLOBE_OBJECTS)
-    const perType = Math.floor(MAX_GLOBE_OBJECTS / 3)
-    const active = filteredSatellites.filter(s => s.type === 'active').slice(0, perType)
-    const debris = filteredSatellites.filter(s => s.type === 'debris').slice(0, perType)
-    const decaying = filteredSatellites.filter(s => s.type === 'decaying').slice(0, perType)
+    const active = filteredSatellites.filter(s => s.type === 'active').slice(0, MAX_GLOBE_OBJECTS)
+    const debris = filteredSatellites.filter(s => s.type === 'debris').slice(0, MAX_GLOBE_OBJECTS)
+    const decaying = filteredSatellites.filter(s => s.type === 'decaying').slice(0, MAX_GLOBE_OBJECTS)
     return [...active, ...debris, ...decaying]
   })()
 
