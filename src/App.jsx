@@ -21,11 +21,13 @@ export default function App() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    Promise.all([fetchActiveSatellites(), fetchCollisionAlerts()]).then(([sats, alts]) => {
-      setSatellites(sats)
-      setAlerts(alts)
-      setLoading(false)
-    })
+    Promise.all([fetchActiveSatellites(), fetchCollisionAlerts()])
+      .then(([sats, alts]) => {
+        setSatellites(sats)
+        setAlerts(alts)
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false))
   }, [])
 
   // Simulation clock
