@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 
 const TYPE_COLORS = {
   alert: 'text-red-400',
@@ -14,38 +14,63 @@ const TYPE_BG = {
   success: 'bg-green-900/10 border-green-800/20',
 }
 
-export default function LiveFeed({ filter, onFilterChange }) {
-  const [feed, setFeed] = useState([])
-  const feedRef = useRef(null)
+function alertToFeedType(alert) {
+  if (alert.risk === 'CRITICAL') return 'alert'
+  if (alert.risk === 'HIGH') return 'warning'
+  if (alert.risk === 'MEDIUM') return 'info'
+  return 'success'
+}
 
-  // Simulate live updates
+function feedTypeIcon(type) {
+  if (type === 'alert') return '🔴'
+  if (type === 'warning') return '⚠️'
+  if (type === 'info') return '📡'
+  return '✅'
+}
+
+function formatEpochTime(epochUtc) {
+  if (!epochUtc) return '--:--:--'
+  try {
+    const d = new Date(epochUtc)
+    return `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}:${String(d.getUTCSeconds()).padStart(2, '0')} UTC`
+  } catch {
+    return '--:--:--'
+  }
+}
+
+export default function LiveFeed({ alerts = [], objectCount = 0, onRefresh, filter, onFilterChange }) {
+  const [feedItems, setFeedItems] = useState([])
+  const [refreshing, setRefreshing] = useState(false)
+
+  // Convert alerts to feed items whenever alerts change
   useEffect(() => {
-    const messages = [
-      { type: 'alert', message: 'FENGYUN-1C fragment maneuver detected', icon: '🔴' },
-      { type: 'warning', message: 'Close approach warning: 2 objects', icon: '⚠️' },
-      { type: 'info', message: 'TLE refresh: CelesTrak synced', icon: '📡' },
-      { type: 'success', message: 'Risk assessment updated', icon: '✅' },
-      { type: 'alert', message: 'New debris object catalogued', icon: '🔴' },
-      { type: 'warning', message: 'STARLINK-4291 altitude anomaly', icon: '⚠️' },
-    ]
+    const items = alerts.map((alert) => {
+      const type = alertToFeedType(alert)
+      return {
+        id: alert.id,
+        type,
+        icon: feedTypeIcon(type),
+        message: `Close approach: ${alert.objectA} / ${alert.objectB} (${alert.closestApproach})`,
+        time: formatEpochTime(alert.epoch_utc),
+        probability: alert.probability,
+      }
+    })
+    setFeedItems(items)
+  }, [alerts])
 
-    const interval = setInterval(() => {
-      const msg = messages[Math.floor(Math.random() * messages.length)]
-      const now = new Date()
-      const time = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`
-      setFeed(prev => [{
-        id: Date.now(),
-        time,
-        ...msg,
-      }, ...prev.slice(0, 29)])
-    }, 3500)
+  const handleRefresh = async () => {
+    if (refreshing || !onRefresh) return
+    setRefreshing(true)
+    try {
+      await onRefresh()
+    } finally {
+      setRefreshing(false)
+    }
+  }
 
-    return () => clearInterval(interval)
-  }, [])
-
-  const filtered = filter === 'All Objects' ? feed :
-    filter === 'Active Only' ? feed.filter(f => f.type === 'success' || f.type === 'info') :
-    feed.filter(f => f.type === 'alert' || f.type === 'warning')
+  const filtered = filter === 'All Objects' ? feedItems :
+    filter === 'Active Only' ? feedItems.filter(f => f.type === 'success' || f.type === 'info') :
+    feedItems.filter(f => f.type === 'alert' || f.type === 'warning')
 
   return (
     <div className="w-64 shrink-0 flex flex-col bg-space-800 border-r border-blue-900/40 overflow-hidden">
@@ -54,7 +79,7 @@ export default function LiveFeed({ filter, onFilterChange }) {
         <span className="text-xs font-semibold text-slate-300 tracking-widest uppercase">Live Data Feed</span>
         <span className="flex items-center gap-1">
           <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-xs text-green-400">Live</span>
+          <span className="text-xs text-green-400">5 km screening</span>
         </span>
       </div>
 
@@ -76,33 +101,55 @@ export default function LiveFeed({ filter, onFilterChange }) {
       </div>
 
       {/* Feed items */}
-      <div ref={feedRef} className="flex-1 overflow-y-auto px-2 py-1 space-y-1">
-        {filtered.map((item) => (
-          <div
-            key={item.id}
-            className={`text-xs rounded border px-2 py-1.5 ${TYPE_BG[item.type] || 'bg-space-900 border-blue-900/20'}`}
-          >
-            <div className="flex items-center gap-1.5">
-              <span>{item.icon}</span>
-              <span className="font-mono text-slate-500 shrink-0">{item.time}</span>
-            </div>
-            <div className={`mt-0.5 ${TYPE_COLORS[item.type] || 'text-slate-300'}`}>
-              {item.message}
-            </div>
+      <div className="flex-1 overflow-y-auto px-2 py-1 space-y-1">
+        {filtered.length === 0 ? (
+          <div className="text-xs text-slate-500 py-4 text-center">
+            {alerts.length === 0 ? 'Loading close approach data...' : 'No close approaches match filter'}
           </div>
-        ))}
+        ) : (
+          filtered.map((item) => (
+            <div
+              key={item.id}
+              className={`text-xs rounded border px-2 py-1.5 ${TYPE_BG[item.type] || 'bg-space-900 border-blue-900/20'}`}
+            >
+              <div className="flex items-center gap-1.5">
+                <span>{item.icon}</span>
+                <span className="font-mono text-slate-500 shrink-0">{item.time}</span>
+              </div>
+              <div className={`mt-0.5 ${TYPE_COLORS[item.type] || 'text-slate-300'}`}>
+                {item.message}
+              </div>
+              {item.probability != null && (
+                <div className="mt-0.5 text-slate-500 text-[10px]">
+                  Collision prob: {item.probability}%
+                </div>
+              )}
+            </div>
+          ))
+        )}
       </div>
 
       {/* Stats footer */}
-      <div className="px-3 py-2 border-t border-blue-900/40 grid grid-cols-2 gap-1">
-        <div className="text-center">
-          <div className="text-xs text-slate-500">Tracked</div>
-          <div className="text-sm font-bold text-blue-400">27,843</div>
+      <div className="px-3 py-2 border-t border-blue-900/40">
+        <div className="grid grid-cols-2 gap-1 mb-2">
+          <div className="text-center">
+            <div className="text-xs text-slate-500">Tracked</div>
+            <div className="text-sm font-bold text-blue-400">{objectCount.toLocaleString()}</div>
+          </div>
+          <div className="text-center">
+            <div className="text-xs text-slate-500">Close (&lt;5 km)</div>
+            <div className="text-sm font-bold text-red-400">{alerts.length}</div>
+          </div>
         </div>
-        <div className="text-center">
-          <div className="text-xs text-slate-500">Alerts</div>
-          <div className="text-sm font-bold text-red-400">3</div>
-        </div>
+        {onRefresh && (
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="w-full text-xs py-1.5 rounded border border-blue-700 bg-blue-900/30 text-blue-300 hover:bg-blue-800/40 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {refreshing ? 'Screening...' : 'Refresh screening'}
+          </button>
+        )}
       </div>
     </div>
   )

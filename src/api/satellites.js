@@ -113,6 +113,18 @@ export async function fetchCollisionAlerts() {
   }
 }
 
+/** Re-run close-approach screening and return fresh alerts (slower, ~1s for 24k objects). */
+export async function fetchCollisionRefresh() {
+  try {
+    const res = await fetch(`${API_BASE}/collisions/refresh`)
+    if (!res.ok) throw new Error('API unavailable')
+    const data = await res.json()
+    return data.pairs.map(transformAlert)
+  } catch {
+    return []
+  }
+}
+
 export async function fetchSatelliteDetail(norad) {
   try {
     const res = await fetch(`${API_BASE}/satellites/${norad}`)

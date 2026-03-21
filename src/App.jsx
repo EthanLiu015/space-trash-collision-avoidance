@@ -4,7 +4,7 @@ import Navbar from './components/Navbar.jsx'
 import LiveFeed from './components/LiveFeed.jsx'
 import CollisionAlerts from './components/CollisionAlerts.jsx'
 import PredictionAnalysis from './components/PredictionAnalysis.jsx'
-import { fetchActiveSatellites, fetchCollisionAlerts } from './api/satellites.js'
+import { fetchActiveSatellites, fetchCollisionAlerts, fetchCollisionRefresh } from './api/satellites.js'
 
 const MAX_GLOBE_OBJECTS = 500
 
@@ -76,7 +76,16 @@ export default function App() {
       {/* Main content */}
       <div className="flex flex-1 overflow-hidden">
         {/* Left: Live Feed */}
-        <LiveFeed filter={filter} onFilterChange={setFilter} />
+        <LiveFeed
+          alerts={alerts}
+          objectCount={satellites.length}
+          onRefresh={async () => {
+            const fresh = await fetchCollisionRefresh()
+            setAlerts(fresh)
+          }}
+          filter={filter}
+          onFilterChange={setFilter}
+        />
 
         {/* Center: Globe */}
         <div className="flex-1 flex flex-col overflow-hidden relative">
