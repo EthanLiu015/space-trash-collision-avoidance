@@ -209,25 +209,27 @@ function SceneContent({ satellites, alerts, selectedSatId, onSelectSat, isPlayin
 
       <Earth simSpeed={simSpeed} />
 
-      {satellites.map((sat) => (
-        <OrbitTrail
-          key={`trail-${sat.id}`}
-          altitude={sat.altitude}
-          inclination={sat.inclination}
-          raan={sat.raan}
-          color={sat.type === 'debris' ? '#ef444440' : sat.type === 'decaying' ? '#f9731640' : '#3b82f640'}
-        />
-      ))}
+      <group key={activeTab}>
+        {satellites.map((sat) => (
+          <OrbitTrail
+            key={`trail-${sat.id}`}
+            altitude={sat.altitude}
+            inclination={sat.inclination}
+            raan={sat.raan}
+            color={sat.type === 'debris' ? '#ef444440' : sat.type === 'decaying' ? '#f9731640' : '#3b82f640'}
+          />
+        ))}
 
-      {satellites.map((sat) => (
-        <Satellite
-          key={sat.id}
-          satellite={sat}
-          isHighlighted={selectedSatId === sat.id}
-          onClick={() => onSelectSat(sat)}
-          simSpeed={simSpeed}
-        />
-      ))}
+        {satellites.map((sat) => (
+          <Satellite
+            key={sat.id}
+            satellite={sat}
+            isHighlighted={selectedSatId === sat.id}
+            onClick={() => onSelectSat(sat)}
+            simSpeed={simSpeed}
+          />
+        ))}
+      </group>
 
       {activeTab === 'All Objects' && collisionPositions.map((pos, i) => (
         <CollisionWarningMarker key={i} position={pos} />
