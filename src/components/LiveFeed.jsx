@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react'
-import { mockLiveFeed } from '../data/mockData.js'
 
 const TYPE_COLORS = {
   alert: 'text-red-400',
@@ -16,7 +15,7 @@ const TYPE_BG = {
 }
 
 export default function LiveFeed({ filter, onFilterChange }) {
-  const [feed, setFeed] = useState(mockLiveFeed)
+  const [feed, setFeed] = useState([])
   const feedRef = useRef(null)
 
   // Simulate live updates
