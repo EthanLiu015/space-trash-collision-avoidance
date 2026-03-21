@@ -185,13 +185,18 @@ function SceneContent({ satellites, alerts, selectedSatId, onSelectSat, isPlayin
     camera.position.set(0, 1.5, 3.5)
   }, [camera])
 
-  // Compute approximate collision positions for alerts
+  // Compute collision positions from actual satellite ECI data
   const collisionPositions = useMemo(() => {
-    return alerts.slice(0, 2).map((_, i) => {
-      const angle = i * 120
-      return orbitalToXYZ(600, 53, angle, 45)
+    const scale = 1 / R_EARTH_KM
+    return alerts.slice(0, 5).flatMap((alert) => {
+      const satA = satellites.find((s) => s.norad === alert.noradA)
+      const satB = satellites.find((s) => s.norad === alert.noradB)
+      const candidates = [satA, satB].filter(
+        (s) => s && s.x_km != null && s.y_km != null && s.z_km != null
+      )
+      return candidates.map((s) => [s.x_km * scale, s.y_km * scale, s.z_km * scale])
     })
-  }, [alerts])
+  }, [alerts, satellites])
 
   return (
     <>
