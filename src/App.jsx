@@ -73,9 +73,11 @@ export default function App() {
     if (activeTab === 'Active Satellites') return sat.type === 'active'
     if (activeTab === 'Debris') return sat.type === 'debris'
     return true
-  }).filter((sat) =>
-    searchQuery === '' || sat.id.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  }).filter((sat) => {
+    if (searchQuery === '') return true
+    const q = searchQuery.toLowerCase().trim()
+    return (sat.id ?? '').toLowerCase().includes(q) || String(sat.norad ?? '').includes(q)
+  })
 
   // Cap what's rendered on the globe for performance
   const globeSatellites = filteredSatellites.slice(0, MAX_GLOBE_OBJECTS)
