@@ -138,7 +138,7 @@ export default function App() {
             <Globe
               satellites={globeSatellites}
               alerts={alerts}
-              selectedSatId={selectedSat?.id}
+              selectedSatId={selectedSat?.norad}
               onSelectSat={setSelectedSat}
               isPlaying={isPlaying}
               simSpeed={simSpeed}
