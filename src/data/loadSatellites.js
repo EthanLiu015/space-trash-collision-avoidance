@@ -45,6 +45,9 @@ function parseEphemerisCSV(text) {
       x_km: x,
       y_km: y,
       z_km: z,
+      vx_kms: vx,
+      vy_kms: vy,
+      vz_kms: vz,
       epoch_utc: row.epoch_utc,
     }
   }).filter(Boolean)

@@ -33,10 +33,13 @@ function transformSatellite(obj) {
     altitude: Math.round(obj.altitude_km),
     inclination: Math.round(inclinationFromECI(obj.x_km, obj.y_km, obj.z_km, obj.vx_kms, obj.vy_kms, obj.vz_kms) * 10) / 10,
     raan: Math.round(raanFromECI(obj.x_km, obj.y_km, obj.z_km, obj.vx_kms, obj.vy_kms, obj.vz_kms) * 10) / 10,
-    // Keep raw ECI for future Globe upgrade
+    // ECI state for Globe (km, km/s)
     x_km: obj.x_km,
     y_km: obj.y_km,
     z_km: obj.z_km,
+    vx_kms: obj.vx_kms,
+    vy_kms: obj.vy_kms,
+    vz_kms: obj.vz_kms,
     epoch_utc: obj.epoch_utc,
   }
 }

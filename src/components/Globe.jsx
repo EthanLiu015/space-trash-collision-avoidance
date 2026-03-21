@@ -103,20 +103,49 @@ function OrbitTrail({ altitude, inclination, raan, color }) {
   )
 }
 
-function Satellite({ satellite, isHighlighted, onClick }) {
+const R_EARTH_KM = 6371
+const MU_EARTH = 398600 // km³/s²
+
+// Compute initial true anomaly (deg) from ECI position. Keeps objects on correct orbit phase.
+function trueAnomalyFromECI(xKm, yKm, zKm, incDeg, raanDeg) {
+  const r = Math.sqrt(xKm * xKm + yKm * yKm + zKm * zKm)
+  if (r < 100) return 0
+  const incRad = (incDeg * Math.PI) / 180
+  const raanRad = (raanDeg * Math.PI) / 180
+  const sinInc = Math.sin(incRad)
+  if (Math.abs(sinInc) < 0.01) {
+    return ((Math.atan2(yKm, xKm) - raanRad) * 180) / Math.PI
+  }
+  const cosNu = (xKm * Math.cos(raanRad) + zKm * Math.sin(raanRad)) / r
+  const sinNu = zKm / (r * sinInc)
+  return (Math.atan2(sinNu, cosNu) * 180) / Math.PI
+}
+
+function Satellite({ satellite, isHighlighted, onClick, simSpeed = 60 }) {
   const meshRef = useRef()
-  const angleRef = useRef(Math.random() * 360)
-  const speed = useMemo(
-    () => 360 / (2 * Math.PI * Math.sqrt(Math.pow((6371 + satellite.altitude) / 6371, 3) * 5400)),
-    [satellite.altitude]
-  )
+  // Angular propagation keeps objects on orbit path (no drift). Linear ECI integration causes spiral-out.
+  const angleRef = useRef((() => {
+    if (satellite.x_km != null && satellite.y_km != null && satellite.z_km != null) {
+      const nu = trueAnomalyFromECI(
+        satellite.x_km, satellite.y_km, satellite.z_km,
+        satellite.inclination, satellite.raan
+      )
+      return ((nu % 360) + 360) % 360
+    }
+    return Math.random() * 360
+  })())
+  // Orbital angular speed (deg/s): T = 2π√(a³/μ), ω = 360/T
+  const orbitalSpeed = useMemo(() => {
+    const a = R_EARTH_KM + satellite.altitude
+    const T = 2 * Math.PI * Math.sqrt(Math.pow(a, 3) / MU_EARTH)
+    return 360 / T
+  }, [satellite.altitude])
 
   useFrame((_, delta) => {
-    angleRef.current = (angleRef.current + speed * delta * 60) % 360
+    const next = angleRef.current + orbitalSpeed * delta * simSpeed
+    angleRef.current = ((next % 360) + 360) % 360
     const [x, y, z] = orbitalToXYZ(satellite.altitude, satellite.inclination, satellite.raan, angleRef.current)
-    if (meshRef.current) {
-      meshRef.current.position.set(x, y, z)
-    }
+    if (meshRef.current) meshRef.current.position.set(x, y, z)
   })
 
   const color = satellite.type === 'debris' ? '#ef4444' : '#3b82f6'
@@ -194,6 +223,7 @@ function SceneContent({ satellites, alerts, selectedSatId, onSelectSat, isPlayin
           satellite={sat}
           isHighlighted={selectedSatId === sat.id}
           onClick={() => onSelectSat(sat)}
+          simSpeed={simSpeed}
         />
       ))}
 
