@@ -39,6 +39,7 @@ from convert_sgp4 import load_and_propagate  # noqa: E402
 from realtime_close_approaches import (  # noqa: E402
     find_close_approaches_optimized,
     MIN_DISTANCE_KM,
+    MIN_RELATIVE_VELOCITY_KM_S,
     THRESHOLD_KM,
 )
 
@@ -101,6 +102,7 @@ def _run_close_approach_screening() -> dict:
     return {
         "threshold_km": THRESHOLD_KM,
         "min_distance_km": MIN_DISTANCE_KM,
+        "min_relative_velocity_km_s": MIN_RELATIVE_VELOCITY_KM_S,
         "epoch_utc": now.isoformat(),
         "objects_screened": len(records),
         "close_pairs": len(pairs),
@@ -170,6 +172,7 @@ def propagate_satellites():
     close_data = {
         "threshold_km": THRESHOLD_KM,
         "min_distance_km": MIN_DISTANCE_KM,
+        "min_relative_velocity_km_s": MIN_RELATIVE_VELOCITY_KM_S,
         "pair_count": len(pairs),
         "pairs": pairs,
     }
@@ -177,6 +180,7 @@ def propagate_satellites():
     _cache["close_approaches"] = {
         "threshold_km": THRESHOLD_KM,
         "min_distance_km": MIN_DISTANCE_KM,
+        "min_relative_velocity_km_s": MIN_RELATIVE_VELOCITY_KM_S,
         "epoch_utc": now.isoformat(),
         "pairs": pairs,
     }
@@ -239,6 +243,7 @@ def get_collision_alerts(
     return {
         "threshold_km": data.get("threshold_km", THRESHOLD_KM),
         "min_distance_km": data.get("min_distance_km", MIN_DISTANCE_KM),
+        "min_relative_velocity_km_s": data.get("min_relative_velocity_km_s", MIN_RELATIVE_VELOCITY_KM_S),
         "epoch_utc": data.get("epoch_utc"),
         "pair_count": len(pairs),
         "pairs": pairs,
@@ -255,6 +260,7 @@ def refresh_collision_alerts():
     return {
         "threshold_km": data["threshold_km"],
         "min_distance_km": data["min_distance_km"],
+        "min_relative_velocity_km_s": data.get("min_relative_velocity_km_s", MIN_RELATIVE_VELOCITY_KM_S),
         "epoch_utc": data["epoch_utc"],
         "pair_count": len(data["pairs"]),
         "pairs": data["pairs"],

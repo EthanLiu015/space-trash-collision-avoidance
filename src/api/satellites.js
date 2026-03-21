@@ -82,7 +82,7 @@ function transformAlert(pair) {
     risk: classifyRisk(prob),
     probability: probPct,
     closestApproach: `${pair.distance_km.toFixed(2)} km`,
-    relativeVelocity: null,       // not in static snapshot; computed when live propagation is used
+    relativeVelocity: pair.relative_velocity_km_s ?? null,
     altitudeChange: parseFloat(altChange),
     riskAfterManeuver: riskAfterPct,
     deltaV: parseFloat((parseFloat(altChange) * 1.0).toFixed(1)), // ~1 m/s per km altitude change
