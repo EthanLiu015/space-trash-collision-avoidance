@@ -26,7 +26,10 @@ function orbitalToXYZ(altitude, inclination, raan, trueAnomaly) {
   return [x * scale, y * scale, z * scale]
 }
 
-function EarthTextured() {
+const SIDEREAL_DAY_SEC = 86164 // 23h 56m 4s — one rotation relative to stars
+const EARTH_ROTATION_RAD_PER_SEC = (2 * Math.PI) / SIDEREAL_DAY_SEC
+
+function EarthTextured({ simSpeed = 1 }) {
   const meshRef = useRef()
   const texture = useTexture('/8k_earth_daymap.jpg')
   useFrame((_, delta) => {
@@ -40,7 +43,7 @@ function EarthTextured() {
   )
 }
 
-function EarthFallback() {
+function EarthFallback({ simSpeed = 1 }) {
   const meshRef = useRef()
   useFrame((_, delta) => {
     if (meshRef.current) meshRef.current.rotation.y += delta * 0.005
@@ -53,16 +56,16 @@ function EarthFallback() {
   )
 }
 
-function Earth() {
+function Earth({ simSpeed = 1 }) {
   const atmosphereRef = useRef()
   useFrame((_, delta) => {
     if (atmosphereRef.current) atmosphereRef.current.rotation.y += delta * 0.005
   })
   return (
     <group>
-      <TextureErrorBoundary fallback={<EarthFallback />}>
-        <Suspense fallback={<EarthFallback />}>
-          <EarthTextured />
+      <TextureErrorBoundary fallback={<EarthFallback simSpeed={simSpeed} />}>
+        <Suspense fallback={<EarthFallback simSpeed={simSpeed} />}>
+          <EarthTextured simSpeed={simSpeed} />
         </Suspense>
       </TextureErrorBoundary>
       <mesh ref={atmosphereRef}>
@@ -198,7 +201,7 @@ function SceneContent({ satellites, alerts, selectedSatId, onSelectSat, isPlayin
 
       <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={0.5} />
 
-      <Earth />
+      <Earth simSpeed={simSpeed} />
 
       {satellites.map((sat) => (
         <OrbitTrail
