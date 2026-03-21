@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -k -n backend,frontend \"npm run backend\" \"vite\"",
+    "dev:frontend": "vite",
     "build": "vite build",
     "preview": "vite preview",
     "backend": "cd python && .venv/bin/uvicorn api.main:app --reload --host 0.0.0.0 --port 8000"
@@ -21,6 +22,7 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.2",
     "autoprefixer": "^10.4.20",
+    "concurrently": "^9.2.1",
     "postcss": "^8.4.47",
     "tailwindcss": "^3.4.14",
     "vite": "^5.4.10"

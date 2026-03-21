@@ -1,129 +1,169 @@
 {
   "threshold_km": 5.0,
   "min_distance_km": 0.01,
-  "epoch_utc": "2026-03-21T17:54:17.936835+00:00",
-  "objects_screened": 24749,
-  "close_pairs": 15,
+  "epoch_utc": "2026-03-21T19:03:30.723389+00:00",
+  "objects_screened": 17646,
+  "close_pairs": 20,
   "pairs": [
+    {
+      "object_a": "ITAMSAT (IO-26)",
+      "norad_a": 22826,
+      "object_b": "FENGYUN 1C DEB",
+      "norad_b": 30608,
+      "distance_km": 4.1229,
+      "epoch_utc": "2026-03-21T19:03:30.723389+00:00"
+    },
     {
       "object_a": "TERRASAR-X",
       "norad_a": 31698,
       "object_b": "TANDEM-X",
       "norad_b": 36605,
-      "distance_km": 0.3691,
-      "epoch_utc": "2026-03-21T17:54:17.936835+00:00"
+      "distance_km": 0.2329,
+      "epoch_utc": "2026-03-21T19:03:30.723389+00:00"
     },
     {
       "object_a": "O3B FM4",
       "norad_a": 39189,
       "object_b": "O3B FM10",
       "norad_b": 40348,
-      "distance_km": 4.6334,
-      "epoch_utc": "2026-03-21T17:54:17.936835+00:00"
+      "distance_km": 2.4617,
+      "epoch_utc": "2026-03-21T19:03:30.723389+00:00"
     },
     {
       "object_a": "TIANHUI 2-01A",
       "norad_a": 44207,
       "object_b": "TIANHUI 2-01B",
       "norad_b": 44209,
-      "distance_km": 0.4164,
-      "epoch_utc": "2026-03-21T17:54:17.936835+00:00"
+      "distance_km": 0.5948,
+      "epoch_utc": "2026-03-21T19:03:30.723389+00:00"
     },
     {
       "object_a": "TIANHUI 2-02A",
       "norad_a": 49071,
       "object_b": "TIANHUI 2-02B",
       "norad_b": 49072,
-      "distance_km": 0.7863,
-      "epoch_utc": "2026-03-21T17:54:17.936835+00:00"
+      "distance_km": 0.6448,
+      "epoch_utc": "2026-03-21T19:03:30.723389+00:00"
+    },
+    {
+      "object_a": "STARLINK-5757",
+      "norad_a": 55580,
+      "object_b": "STARLINK-31733",
+      "norad_b": 59486,
+      "distance_km": 3.4211,
+      "epoch_utc": "2026-03-21T19:03:30.723389+00:00"
     },
     {
       "object_a": "PIESAT A",
       "norad_a": 56153,
       "object_b": "PIESAT B",
       "norad_b": 56154,
-      "distance_km": 2.7964,
-      "epoch_utc": "2026-03-21T17:54:17.936835+00:00"
+      "distance_km": 1.048,
+      "epoch_utc": "2026-03-21T19:03:30.723389+00:00"
     },
     {
       "object_a": "PIESAT A",
       "norad_a": 56153,
       "object_b": "PIESAT C",
       "norad_b": 56155,
-      "distance_km": 3.1541,
-      "epoch_utc": "2026-03-21T17:54:17.936835+00:00"
+      "distance_km": 2.7537,
+      "epoch_utc": "2026-03-21T19:03:30.723389+00:00"
     },
     {
       "object_a": "PIESAT A",
       "norad_a": 56153,
       "object_b": "PIESAT D",
       "norad_b": 56156,
-      "distance_km": 1.9094,
-      "epoch_utc": "2026-03-21T17:54:17.936835+00:00"
+      "distance_km": 2.6086,
+      "epoch_utc": "2026-03-21T19:03:30.723389+00:00"
     },
     {
       "object_a": "PIESAT B",
       "norad_a": 56154,
       "object_b": "PIESAT C",
       "norad_b": 56155,
-      "distance_km": 0.3655,
-      "epoch_utc": "2026-03-21T17:54:17.936835+00:00"
+      "distance_km": 1.756,
+      "epoch_utc": "2026-03-21T19:03:30.723389+00:00"
     },
     {
       "object_a": "PIESAT B",
       "norad_a": 56154,
       "object_b": "PIESAT D",
       "norad_b": 56156,
-      "distance_km": 0.9501,
-      "epoch_utc": "2026-03-21T17:54:17.936835+00:00"
-    },
-    {
-      "object_a": "PIESAT C",
-      "norad_a": 56155,
-      "object_b": "PIESAT D",
-      "norad_b": 56156,
-      "distance_km": 1.2956,
-      "epoch_utc": "2026-03-21T17:54:17.936835+00:00"
-    },
-    {
-      "object_a": "STARLINK-30374",
-      "norad_a": 57809,
-      "object_b": "STARLINK-30418",
-      "norad_b": 57829,
-      "distance_km": 3.0427,
-      "epoch_utc": "2026-03-21T17:54:17.936835+00:00"
+      "distance_km": 3.5899,
+      "epoch_utc": "2026-03-21T19:03:30.723389+00:00"
     },
     {
       "object_a": "TIANHUI 5A",
       "norad_a": 58199,
       "object_b": "TIANHUI 5B",
       "norad_b": 58201,
-      "distance_km": 0.6965,
-      "epoch_utc": "2026-03-21T17:54:17.936835+00:00"
+      "distance_km": 0.547,
+      "epoch_utc": "2026-03-21T19:03:30.723389+00:00"
     },
     {
       "object_a": "TIANHUI 5C",
       "norad_a": 60211,
       "object_b": "TIANHUI 5D",
       "norad_b": 60212,
-      "distance_km": 0.6966,
-      "epoch_utc": "2026-03-21T17:54:17.936835+00:00"
+      "distance_km": 1.2653,
+      "epoch_utc": "2026-03-21T19:03:30.723389+00:00"
+    },
+    {
+      "object_a": "HYPERFIELD-1A",
+      "norad_a": 60562,
+      "object_b": "STARLINK-35347",
+      "norad_b": 65907,
+      "distance_km": 2.916,
+      "epoch_utc": "2026-03-21T19:03:30.723389+00:00"
     },
     {
       "object_a": "SUPERVIEW NEO-2 03",
       "norad_a": 62079,
       "object_b": "SUPERVIEW NEO-2 04",
       "norad_b": 62080,
-      "distance_km": 2.5069,
-      "epoch_utc": "2026-03-21T17:54:17.936835+00:00"
+      "distance_km": 1.0155,
+      "epoch_utc": "2026-03-21T19:03:30.723389+00:00"
     },
     {
       "object_a": "SCS-01 E",
       "norad_a": 63986,
       "object_b": "IRIDE FM5",
       "norad_b": 66699,
-      "distance_km": 1.2638,
-      "epoch_utc": "2026-03-21T17:54:17.936835+00:00"
+      "distance_km": 0.1053,
+      "epoch_utc": "2026-03-21T19:03:30.723389+00:00"
+    },
+    {
+      "object_a": "STARLINK-37049",
+      "norad_a": 68152,
+      "object_b": "STARLINK-37064",
+      "norad_b": 68157,
+      "distance_km": 1.212,
+      "epoch_utc": "2026-03-21T19:03:30.723389+00:00"
+    },
+    {
+      "object_a": "STARLINK-37049",
+      "norad_a": 68152,
+      "object_b": "STARLINK-37064",
+      "norad_b": 68157,
+      "distance_km": 1.212,
+      "epoch_utc": "2026-03-21T19:03:30.723389+00:00"
+    },
+    {
+      "object_a": "STARLINK-37064",
+      "norad_a": 68157,
+      "object_b": "STARLINK-37049",
+      "norad_b": 68152,
+      "distance_km": 1.212,
+      "epoch_utc": "2026-03-21T19:03:30.723389+00:00"
+    },
+    {
+      "object_a": "STARLINK-37049",
+      "norad_a": 68152,
+      "object_b": "STARLINK-37064",
+      "norad_b": 68157,
+      "distance_km": 1.212,
+      "epoch_utc": "2026-03-21T19:03:30.723389+00:00"
     }
   ]
 }

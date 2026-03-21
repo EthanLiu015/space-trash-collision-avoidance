@@ -19,15 +19,36 @@ export default function App() {
   const [satellites, setSatellites] = useState([])
   const [alerts, setAlerts] = useState([])
   const [loading, setLoading] = useState(true)
+  const [collisionDataLive, setCollisionDataLive] = useState(false)
 
+  const refreshingRef = useRef(false)
+
+  const runCollisionRefresh = async () => {
+    if (refreshingRef.current) return
+    refreshingRef.current = true
+    try {
+      const { alerts: fresh, live } = await fetchCollisionRefresh()
+      setAlerts(fresh)
+      setCollisionDataLive(live)
+    } finally {
+      refreshingRef.current = false
+    }
+  }
+
+  // Initial load: satellites + live collision screening (not cached)
   useEffect(() => {
-    Promise.all([fetchActiveSatellites(), fetchCollisionAlerts()])
-      .then(([sats, alts]) => {
-        setSatellites(sats)
-        setAlerts(alts)
+    Promise.all([fetchActiveSatellites(), runCollisionRefresh()])
+      .then(([sats]) => {
+        setSatellites(sats ?? [])
       })
       .catch(console.error)
       .finally(() => setLoading(false))
+  }, [])
+
+  // Reload close-approach data every 2 seconds (re-runs screening for fresh results)
+  useEffect(() => {
+    const interval = setInterval(runCollisionRefresh, 2000)
+    return () => clearInterval(interval)
   }, [])
 
   // Simulation clock
@@ -81,10 +102,8 @@ export default function App() {
         <LiveFeed
           alerts={alerts}
           objectCount={satellites.length}
-          onRefresh={async () => {
-            const fresh = await fetchCollisionRefresh()
-            setAlerts(fresh)
-          }}
+          onRefresh={runCollisionRefresh}
+          live={collisionDataLive}
           filter={filter}
           onFilterChange={setFilter}
         />
@@ -143,7 +162,7 @@ export default function App() {
         </div>
 
         {/* Right: Collision Alerts */}
-        <CollisionAlerts alerts={alerts} />
+        <CollisionAlerts alerts={alerts} live={collisionDataLive} />
       </div>
     </div>
   )

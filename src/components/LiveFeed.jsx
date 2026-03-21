@@ -38,7 +38,7 @@ function formatEpochTime(epochUtc) {
   }
 }
 
-export default function LiveFeed({ alerts = [], objectCount = 0, onRefresh, filter, onFilterChange }) {
+export default function LiveFeed({ alerts = [], objectCount = 0, onRefresh, live = false, filter, onFilterChange }) {
   const [feedItems, setFeedItems] = useState([])
   const [refreshing, setRefreshing] = useState(false)
 
@@ -78,8 +78,10 @@ export default function LiveFeed({ alerts = [], objectCount = 0, onRefresh, filt
       <div className="px-3 py-2 border-b border-blue-900/40 flex items-center justify-between">
         <span className="text-xs font-semibold text-slate-300 tracking-widest uppercase">Live Data Feed</span>
         <span className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-xs text-green-400">5 km screening</span>
+          <span className={`w-2 h-2 rounded-full ${live ? 'bg-green-500 animate-pulse' : 'bg-amber-500'}`} />
+          <span className={`text-xs ${live ? 'text-green-400' : 'text-amber-400'}`}>
+            {live ? '5 km screening' : 'Cached (run backend)'}
+          </span>
         </span>
       </div>
 

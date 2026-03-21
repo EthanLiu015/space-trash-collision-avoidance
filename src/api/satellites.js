@@ -59,7 +59,13 @@ function classifyRisk(probability) {
   return 'LOW'
 }
 
+function addCollisionProbability(pair, thresholdKm = 5) {
+  const scale = Math.max(thresholdKm / 5, 0.1)
+  pair.collision_probability = Math.round(Math.exp(-pair.distance_km / scale) * 1e6) / 1e6
+}
+
 function transformAlert(pair) {
+  if (pair.collision_probability == null) addCollisionProbability(pair)
   const prob = pair.collision_probability ?? 0
   const probPct = Math.round(prob * 100)
 
@@ -102,6 +108,18 @@ export async function fetchActiveSatellites() {
   }
 }
 
+async function loadCollisionAlertsFromStatic() {
+  try {
+    const res = await fetch('/data/close_approaches_5km.json')
+    if (!res.ok) return []
+    const data = await res.json()
+    const pairs = data.pairs ?? []
+    return pairs.map((p) => transformAlert({ ...p }))
+  } catch {
+    return []
+  }
+}
+
 export async function fetchCollisionAlerts() {
   try {
     const res = await fetch(`${API_BASE}/collisions/alerts`)
@@ -109,7 +127,7 @@ export async function fetchCollisionAlerts() {
     const data = await res.json()
     return data.pairs.map(transformAlert)
   } catch {
-    return []
+    return loadCollisionAlertsFromStatic()
   }
 }
 
@@ -119,9 +137,9 @@ export async function fetchCollisionRefresh() {
     const res = await fetch(`${API_BASE}/collisions/refresh`)
     if (!res.ok) throw new Error('API unavailable')
     const data = await res.json()
-    return data.pairs.map(transformAlert)
+    return { alerts: data.pairs.map(transformAlert), live: true }
   } catch {
-    return []
+    return { alerts: await loadCollisionAlertsFromStatic(), live: false }
   }
 }
 
