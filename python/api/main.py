@@ -11,7 +11,7 @@ Endpoints:
 
 import csv
 import json
-import math
+import logging
 import sys
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -35,6 +35,7 @@ COMBINED_CSV = PROCESSED_DIR / "combined_satellites.csv"
 
 # Add preprocessing dir to path
 sys.path.insert(0, str(PREPROCESSING_DIR))
+sys.path.insert(0, str(PYTHON_DIR))
 from convert_sgp4 import load_and_propagate  # noqa: E402
 from realtime_close_approaches import (  # noqa: E402
     find_close_approaches_optimized,
@@ -47,6 +48,7 @@ from realtime_close_approaches import (  # noqa: E402
 # Startup cache
 # ---------------------------------------------------------------------------
 _cache: dict = {}
+_orbital_by_norad: dict = {}
 
 
 def _load_ephemeris_csv() -> list[dict]:
@@ -70,12 +72,70 @@ def _load_ephemeris_csv() -> list[dict]:
     return records
 
 
+def _load_orbital_lookup() -> None:
+    """Load combined_satellites for orbital element lookup (MEAN_MOTION, ECCENTRICITY, INCLINATION)."""
+    global _orbital_by_norad
+    if not COMBINED_CSV.exists():
+        return
+    with open(COMBINED_CSV, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            try:
+                norad = int(row.get("NORAD_CAT_ID", 0))
+                _orbital_by_norad[norad] = {
+                    "MEAN_MOTION": float(row.get("MEAN_MOTION", 0)),
+                    "ECCENTRICITY": float(row.get("ECCENTRICITY", 0)),
+                    "INCLINATION": float(row.get("INCLINATION", 0)),
+                }
+            except (ValueError, TypeError):
+                continue
+
+
+def _try_ml_probability(pair: dict) -> float | None:
+    """Use ML model for collision probability if orbital data available. Returns None on failure."""
+    log = logging.getLogger("api.ml")
+    if not _orbital_by_norad:
+        log.info("ml probability skipped: no orbital lookup loaded")
+        return None
+    if "relative_velocity_km_s" not in pair:
+        log.info("ml probability skipped: pair missing relative_velocity_km_s")
+        return None
+    orb_a = _orbital_by_norad.get(pair["norad_a"])
+    orb_b = _orbital_by_norad.get(pair["norad_b"])
+    if not orb_a or not orb_b:
+        log.info("ml probability skipped: NORAD %s or %s not in orbital lookup",
+                 pair.get("norad_a"), pair.get("norad_b"))
+        return None
+    if not (PYTHON_DIR / "ml" / "risk_model.json").exists():
+        log.info("ml probability skipped: risk_model.json not found")
+        return None
+    try:
+        from ml.risk_model import build_features_from_pair, predict_probability
+        feat = build_features_from_pair(
+            pair["distance_km"],
+            pair["relative_velocity_km_s"],
+            orb_a,
+            orb_b,
+        )
+        prob = predict_probability(feat)
+        log.debug("ml probability for %s/%s: %.6f", pair.get("norad_a"), pair.get("norad_b"), prob)
+        return prob
+    except Exception as e:
+        log.warning("ml probability failed for pair %s/%s: %s",
+                    pair.get("norad_a"), pair.get("norad_b"), e)
+        return None
+
+
 def _add_collision_probability(pairs: list[dict], threshold_km: float = THRESHOLD_KM) -> None:
-    """Add exponential decay collision probability to each pair."""
-    scale = max(threshold_km / 5.0, 0.1)
+    """Add collision probability = e^risk using XGBoost model only. No heuristic fallback."""
     for pair in pairs:
-        d = pair["distance_km"]
-        pair["collision_probability"] = round(math.exp(-d / scale), 6)
+        prob = _try_ml_probability(pair)
+        if prob is not None:
+            pair["collision_probability"] = round(prob, 6)
+            pair["probability_source"] = "ml"
+        else:
+            pair["collision_probability"] = None
+            pair["probability_source"] = None
 
 
 def _load_close_approaches_from_file() -> dict | None:
@@ -112,6 +172,8 @@ def _run_close_approach_screening() -> dict:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    logging.getLogger("api.ml").setLevel(logging.INFO)
+    _load_orbital_lookup()
     _cache["ephemeris"] = _load_ephemeris_csv()
     _cache["ephemeris_by_norad"] = {r["norad_id"]: r for r in _cache["ephemeris"]}
     # Load close approaches: try file first, else run screening on startup
