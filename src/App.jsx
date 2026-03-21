@@ -79,8 +79,15 @@ export default function App() {
     return (sat.id ?? '').toLowerCase().includes(q) || String(sat.norad ?? '').includes(q)
   })
 
-  // Cap what's rendered on the globe for performance
-  const globeSatellites = filteredSatellites.slice(0, MAX_GLOBE_OBJECTS)
+  // Cap what's rendered on the globe for performance.
+  // For "All Objects", sample up to MAX_GLOBE_OBJECTS of each type so all three are visually distinct.
+  const globeSatellites = (() => {
+    if (activeTab !== 'All Objects') return filteredSatellites.slice(0, MAX_GLOBE_OBJECTS)
+    const active = filteredSatellites.filter(s => s.type === 'active').slice(0, MAX_GLOBE_OBJECTS)
+    const debris = filteredSatellites.filter(s => s.type === 'debris').slice(0, MAX_GLOBE_OBJECTS)
+    const decaying = filteredSatellites.filter(s => s.type === 'decaying').slice(0, MAX_GLOBE_OBJECTS)
+    return [...active, ...debris, ...decaying]
+  })()
 
   const handleStepForward = () => {
     setSimTime((prev) => new Date(prev.getTime() + 60 * 1000))
@@ -135,6 +142,7 @@ export default function App() {
               onSelectSat={setSelectedSat}
               isPlaying={isPlaying}
               simSpeed={simSpeed}
+              activeTab={activeTab}
             />
 
             {/* Overlay: selected satellite info */}

@@ -144,7 +144,7 @@ function Satellite({ satellite, isHighlighted, onClick, simSpeed = 60 }) {
     if (meshRef.current) meshRef.current.position.set(x, y, z)
   })
 
-  const color = satellite.type === 'debris' ? '#ef4444' : '#3b82f6'
+  const color = satellite.type === 'debris' ? '#ef4444' : satellite.type === 'decaying' ? '#f97316' : '#3b82f6'
   const size = isHighlighted ? 0.025 : 0.015
 
   return (
@@ -178,7 +178,7 @@ function CollisionWarningMarker({ position }) {
   )
 }
 
-function SceneContent({ satellites, alerts, selectedSatId, onSelectSat, isPlaying, simSpeed }) {
+function SceneContent({ satellites, alerts, selectedSatId, onSelectSat, isPlaying, simSpeed, activeTab }) {
   const { camera } = useThree()
 
   useEffect(() => {
@@ -208,27 +208,29 @@ function SceneContent({ satellites, alerts, selectedSatId, onSelectSat, isPlayin
 
       <Earth simSpeed={simSpeed} />
 
-      {satellites.map((sat) => (
-        <OrbitTrail
-          key={`trail-${sat.id}`}
-          altitude={sat.altitude}
-          inclination={sat.inclination}
-          raan={sat.raan}
-          color={sat.type === 'debris' ? '#ef444440' : '#3b82f640'}
-        />
-      ))}
+      <group key={activeTab}>
+        {satellites.map((sat) => (
+          <OrbitTrail
+            key={`trail-${sat.id}`}
+            altitude={sat.altitude}
+            inclination={sat.inclination}
+            raan={sat.raan}
+            color={sat.type === 'debris' ? '#ef444440' : sat.type === 'decaying' ? '#f9731640' : '#3b82f640'}
+          />
+        ))}
 
-      {satellites.map((sat) => (
-        <Satellite
-          key={sat.id}
-          satellite={sat}
-          isHighlighted={selectedSatId === sat.id}
-          onClick={() => onSelectSat(sat)}
-          simSpeed={simSpeed}
-        />
-      ))}
+        {satellites.map((sat) => (
+          <Satellite
+            key={sat.id}
+            satellite={sat}
+            isHighlighted={selectedSatId === sat.id}
+            onClick={() => onSelectSat(sat)}
+            simSpeed={simSpeed}
+          />
+        ))}
+      </group>
 
-      {collisionPositions.map((pos, i) => (
+      {activeTab === 'All Objects' && collisionPositions.map((pos, i) => (
         <CollisionWarningMarker key={i} position={pos} />
       ))}
 
@@ -243,7 +245,7 @@ function SceneContent({ satellites, alerts, selectedSatId, onSelectSat, isPlayin
   )
 }
 
-export default function Globe({ satellites, alerts, selectedSatId, onSelectSat, isPlaying, simSpeed }) {
+export default function Globe({ satellites, alerts, selectedSatId, onSelectSat, isPlaying, simSpeed, activeTab }) {
   return (
     <Canvas
       camera={{ position: [0, 1.5, 3.5], fov: 45 }}
@@ -257,6 +259,7 @@ export default function Globe({ satellites, alerts, selectedSatId, onSelectSat, 
         onSelectSat={onSelectSat}
         isPlaying={isPlaying}
         simSpeed={simSpeed}
+        activeTab={activeTab}
       />
     </Canvas>
   )
