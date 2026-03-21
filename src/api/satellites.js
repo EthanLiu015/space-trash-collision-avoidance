@@ -1,3 +1,5 @@
+import { loadAllSatellites } from '../data/loadSatellites.js'
+
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 export async function fetchActiveSatellites() {
@@ -6,9 +8,7 @@ export async function fetchActiveSatellites() {
     if (!res.ok) throw new Error('API unavailable')
     return res.json()
   } catch {
-    // Return mock data when backend not available
-    const { mockSatellites } = await import('../data/mockData.js')
-    return mockSatellites
+    return loadAllSatellites()
   }
 }
 
@@ -18,8 +18,7 @@ export async function fetchCollisionAlerts() {
     if (!res.ok) throw new Error('API unavailable')
     return res.json()
   } catch {
-    const { mockCollisionAlerts } = await import('../data/mockData.js')
-    return mockCollisionAlerts
+    return []
   }
 }
 

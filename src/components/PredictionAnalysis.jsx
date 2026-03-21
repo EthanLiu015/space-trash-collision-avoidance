@@ -2,7 +2,17 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
   ResponsiveContainer, Area, AreaChart,
 } from 'recharts'
-import { mockDistanceData, mockProbabilityData } from '../data/mockData.js'
+const distanceData = Array.from({ length: 60 }, (_, i) => ({
+  t: i,
+  distance: Math.max(0.1, 50 - 45 * Math.exp(-Math.pow((i - 30) / 8, 2)) + (Math.random() - 0.5) * 3),
+  threshold: 5,
+}))
+
+const probabilityData = Array.from({ length: 60 }, (_, i) => ({
+  t: i,
+  probability: Math.min(95, Math.max(0, 82 * Math.exp(-Math.pow((i - 25) / 7, 2)) + (Math.random() - 0.5) * 4)),
+  safe: 10,
+}))
 
 const CustomTooltip = ({ active, payload, label, unit }) => {
   if (active && payload && payload.length) {
@@ -42,7 +52,7 @@ export default function PredictionAnalysis({ selectedAlert }) {
             <span className="text-red-400 ml-auto">— Collision Threshold</span>
           </div>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={mockDistanceData} margin={{ top: 2, right: 4, left: -20, bottom: 0 }}>
+            <AreaChart data={distanceData} margin={{ top: 2, right: 4, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="distGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
@@ -67,7 +77,7 @@ export default function PredictionAnalysis({ selectedAlert }) {
             <span className="text-green-400 ml-auto">— Safe Zone</span>
           </div>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={mockProbabilityData} margin={{ top: 2, right: 4, left: -20, bottom: 0 }}>
+            <AreaChart data={probabilityData} margin={{ top: 2, right: 4, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="probGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4} />

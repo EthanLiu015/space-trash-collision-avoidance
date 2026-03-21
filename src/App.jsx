@@ -4,7 +4,9 @@ import Navbar from './components/Navbar.jsx'
 import LiveFeed from './components/LiveFeed.jsx'
 import CollisionAlerts from './components/CollisionAlerts.jsx'
 import PredictionAnalysis from './components/PredictionAnalysis.jsx'
-import { mockSatellites, mockCollisionAlerts } from './data/mockData.js'
+import { fetchActiveSatellites, fetchCollisionAlerts } from './api/satellites.js'
+
+const MAX_GLOBE_OBJECTS = 500
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('All Objects')
@@ -14,8 +16,17 @@ export default function App() {
   const [simTime, setSimTime] = useState(new Date())
   const [selectedSat, setSelectedSat] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
-  const [satellites] = useState(mockSatellites)
-  const [alerts] = useState(mockCollisionAlerts)
+  const [satellites, setSatellites] = useState([])
+  const [alerts, setAlerts] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    Promise.all([fetchActiveSatellites(), fetchCollisionAlerts()]).then(([sats, alts]) => {
+      setSatellites(sats)
+      setAlerts(alts)
+      setLoading(false)
+    })
+  }, [])
 
   // Simulation clock
   useEffect(() => {
@@ -26,7 +37,7 @@ export default function App() {
     return () => clearInterval(interval)
   }, [isPlaying, simSpeed])
 
-  // Filter satellites based on tab
+  // Filter satellites based on tab and search
   const filteredSatellites = satellites.filter((sat) => {
     if (activeTab === 'Active Satellites') return sat.type === 'active'
     if (activeTab === 'Debris') return sat.type === 'debris'
@@ -34,6 +45,9 @@ export default function App() {
   }).filter((sat) =>
     searchQuery === '' || sat.id.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  // Cap what's rendered on the globe for performance
+  const globeSatellites = filteredSatellites.slice(0, MAX_GLOBE_OBJECTS)
 
   const handleStepForward = () => {
     setSimTime((prev) => new Date(prev.getTime() + 60 * 1000))
@@ -69,8 +83,13 @@ export default function App() {
           <div className="flex-1 relative">
             {/* Globe background gradient */}
             <div className="absolute inset-0 bg-gradient-to-br from-space-800 to-space-900" />
+            {loading && (
+              <div className="absolute inset-0 flex items-center justify-center z-10 text-slate-400 text-sm">
+                Loading satellite data...
+              </div>
+            )}
             <Globe
-              satellites={filteredSatellites}
+              satellites={globeSatellites}
               alerts={alerts}
               selectedSatId={selectedSat?.id}
               onSelectSat={setSelectedSat}
@@ -98,7 +117,8 @@ export default function App() {
             <div className="absolute bottom-3 left-3 flex gap-3 text-xs text-slate-500">
               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> Active</span>
               <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> Debris</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" /> Station</span>
+              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-500 inline-block" /> Decaying</span>
+              {!loading && <span>{filteredSatellites.length.toLocaleString()} objects</span>}
             </div>
 
             {/* Controls hint */}
