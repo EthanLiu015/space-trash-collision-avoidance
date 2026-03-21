@@ -1,0 +1,54 @@
+{
+  "threshold_km": 5.0,
+  "epoch_utc": "2026-03-21T16:53:00.498791+00:00",
+  "pairs": [
+    {
+      "object_a": "ISS (ZARYA)",
+      "norad_a": 25544,
+      "object_b": "ISS (UNITY)",
+      "norad_b": 25575,
+      "distance_km": 0.0,
+      "epoch_utc": "2026-03-21T16:53:00.498791+00:00"
+    },
+    {
+      "object_a": "ISS (ZARYA)",
+      "norad_a": 25544,
+      "object_b": "ISS (ZVEZDA)",
+      "norad_b": 26400,
+      "distance_km": 0.0,
+      "epoch_utc": "2026-03-21T16:53:00.498791+00:00"
+    },
+    {
+      "object_a": "ISS (ZARYA)",
+      "norad_a": 25544,
+      "object_b": "ISS (DESTINY)",
+      "norad_b": 26700,
+      "distance_km": 0.0,
+      "epoch_utc": "2026-03-21T16:53:00.498791+00:00"
+    },
+    {
+      "object_a": "ISS (UNITY)",
+      "norad_a": 25575,
+      "object_b": "ISS (ZVEZDA)",
+      "norad_b": 26400,
+      "distance_km": 0.0,
+      "epoch_utc": "2026-03-21T16:53:00.498791+00:00"
+    },
+    {
+      "object_a": "ISS (UNITY)",
+      "norad_a": 25575,
+      "object_b": "ISS (DESTINY)",
+      "norad_b": 26700,
+      "distance_km": 0.0,
+      "epoch_utc": "2026-03-21T16:53:00.498791+00:00"
+    },
+    {
+      "object_a": "ISS (ZVEZDA)",
+      "norad_a": 26400,
+      "object_b": "ISS (DESTINY)",
+      "norad_b": 26700,
+      "distance_km": 0.0,
+      "epoch_utc": "2026-03-21T16:53:00.498791+00:00"
+    }
+  ]
+}
