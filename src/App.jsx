@@ -7,6 +7,7 @@ import PredictionAnalysis from './components/PredictionAnalysis.jsx'
 import { fetchActiveSatellites, fetchCollisionAlerts, fetchCollisionRefresh } from './api/satellites.js'
 
 const MAX_GLOBE_OBJECTS = 500
+const MAX_PERSISTED_ALERTS = 50  // Cap to avoid unbounded growth
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('All Objects')
@@ -28,8 +29,15 @@ export default function App() {
     refreshingRef.current = true
     try {
       const { alerts: fresh, live } = await fetchCollisionRefresh()
-      setAlerts(fresh)
       setCollisionDataLive(live)
+      // Persist: merge fresh with previous — once a close approach appears, it stays
+      setAlerts((prev) => {
+        const byId = new Map(prev.map((a) => [a.id, a]))
+        for (const a of fresh) byId.set(a.id, a)
+        const merged = Array.from(byId.values())
+        merged.sort((a, b) => (b.epoch_utc || '').localeCompare(a.epoch_utc || ''))
+        return merged.slice(0, MAX_PERSISTED_ALERTS)
+      })
     } finally {
       refreshingRef.current = false
     }
