@@ -1,7 +1,13 @@
-import { useRef, useMemo, useEffect } from 'react'
+import { useRef, useMemo, useEffect, Suspense, Component } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls, Stars } from '@react-three/drei'
+import { OrbitControls, Stars, useTexture } from '@react-three/drei'
 import * as THREE from 'three'
+
+class TextureErrorBoundary extends Component {
+  state = { failed: false }
+  static getDerivedStateFromError() { return { failed: true } }
+  render() { return this.state.failed ? this.props.fallback : this.props.children }
+}
 
 // Convert orbital elements to 3D position
 function orbitalToXYZ(altitude, inclination, raan, trueAnomaly) {
@@ -20,61 +26,48 @@ function orbitalToXYZ(altitude, inclination, raan, trueAnomaly) {
   return [x * scale, y * scale, z * scale]
 }
 
-function Earth() {
+function EarthTextured() {
   const meshRef = useRef()
-  const atmosphereRef = useRef()
-
+  const texture = useTexture('/8k_earth_daymap.jpg')
   useFrame((_, delta) => {
     if (meshRef.current) meshRef.current.rotation.y += delta * 0.05
+  })
+  return (
+    <mesh ref={meshRef}>
+      <sphereGeometry args={[1, 64, 64]} />
+      <meshPhongMaterial map={texture} shininess={15} />
+    </mesh>
+  )
+}
+
+function EarthFallback() {
+  const meshRef = useRef()
+  useFrame((_, delta) => {
+    if (meshRef.current) meshRef.current.rotation.y += delta * 0.05
+  })
+  return (
+    <mesh ref={meshRef}>
+      <sphereGeometry args={[1, 64, 64]} />
+      <meshPhongMaterial color="#1a4a8a" emissive="#0a1a3a" emissiveIntensity={0.3} shininess={30} />
+    </mesh>
+  )
+}
+
+function Earth() {
+  const atmosphereRef = useRef()
+  useFrame((_, delta) => {
     if (atmosphereRef.current) atmosphereRef.current.rotation.y += delta * 0.05
   })
-
   return (
     <group>
-      {/* Earth sphere */}
-      <mesh ref={meshRef}>
-        <sphereGeometry args={[1, 64, 64]} />
-        <meshPhongMaterial
-          color="#1a4a8a"
-          emissive="#0a1a3a"
-          emissiveIntensity={0.3}
-          shininess={30}
-        />
-      </mesh>
-
-      {/* Continent outlines approximated with a slightly different color overlay */}
-      <mesh>
-        <sphereGeometry args={[1.001, 64, 64]} />
-        <meshPhongMaterial
-          color="#2d7a47"
-          emissive="#1a4a2a"
-          emissiveIntensity={0.2}
-          transparent
-          opacity={0.3}
-          wireframe={false}
-        />
-      </mesh>
-
-      {/* Atmosphere glow */}
+      <TextureErrorBoundary fallback={<EarthFallback />}>
+        <Suspense fallback={<EarthFallback />}>
+          <EarthTextured />
+        </Suspense>
+      </TextureErrorBoundary>
       <mesh ref={atmosphereRef}>
         <sphereGeometry args={[1.05, 64, 64]} />
-        <meshPhongMaterial
-          color="#4488ff"
-          transparent
-          opacity={0.08}
-          side={THREE.BackSide}
-        />
-      </mesh>
-
-      {/* Grid lines */}
-      <mesh>
-        <sphereGeometry args={[1.002, 24, 24]} />
-        <meshBasicMaterial
-          color="#1e3a6e"
-          wireframe
-          transparent
-          opacity={0.15}
-        />
+        <meshPhongMaterial color="#4488ff" transparent opacity={0.08} side={THREE.BackSide} />
       </mesh>
     </group>
   )
@@ -246,8 +239,8 @@ export default function Globe({ satellites, alerts, selectedSatId, onSelectSat, 
   return (
     <Canvas
       camera={{ position: [0, 1.5, 3.5], fov: 45 }}
-      gl={{ antialias: true, alpha: false }}
-      style={{ background: 'transparent' }}
+      gl={{ antialias: true, alpha: true }}
+      style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
     >
       <SceneContent
         satellites={satellites}
