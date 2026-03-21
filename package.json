@@ -7,7 +7,7 @@
     "dev:frontend": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "backend": "cd python && .venv/bin/uvicorn api.main:app --reload --host 0.0.0.0 --port 8000"
+    "backend": "cd python && DYLD_LIBRARY_PATH=/Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/lib .venv/bin/uvicorn api.main:app --reload --host 0.0.0.0 --port 8000"
   },
   "dependencies": {
     "@react-three/drei": "^9.109.2",
