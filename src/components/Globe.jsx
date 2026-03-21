@@ -178,7 +178,7 @@ function CollisionWarningMarker({ position }) {
   )
 }
 
-function SceneContent({ satellites, alerts, selectedSatId, onSelectSat, isPlaying, simSpeed }) {
+function SceneContent({ satellites, alerts, selectedSatId, onSelectSat, isPlaying, simSpeed, activeTab }) {
   const { camera } = useThree()
 
   useEffect(() => {
@@ -223,7 +223,7 @@ function SceneContent({ satellites, alerts, selectedSatId, onSelectSat, isPlayin
         />
       ))}
 
-      {collisionPositions.map((pos, i) => (
+      {activeTab === 'All Objects' && collisionPositions.map((pos, i) => (
         <CollisionWarningMarker key={i} position={pos} />
       ))}
 
@@ -238,7 +238,7 @@ function SceneContent({ satellites, alerts, selectedSatId, onSelectSat, isPlayin
   )
 }
 
-export default function Globe({ satellites, alerts, selectedSatId, onSelectSat, isPlaying, simSpeed }) {
+export default function Globe({ satellites, alerts, selectedSatId, onSelectSat, isPlaying, simSpeed, activeTab }) {
   return (
     <Canvas
       camera={{ position: [0, 1.5, 3.5], fov: 45 }}
@@ -252,6 +252,7 @@ export default function Globe({ satellites, alerts, selectedSatId, onSelectSat, 
         onSelectSat={onSelectSat}
         isPlaying={isPlaying}
         simSpeed={simSpeed}
+        activeTab={activeTab}
       />
     </Canvas>
   )

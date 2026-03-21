@@ -133,6 +133,7 @@ export default function App() {
               onSelectSat={setSelectedSat}
               isPlaying={isPlaying}
               simSpeed={simSpeed}
+              activeTab={activeTab}
             />
 
             {/* Overlay: selected satellite info */}
