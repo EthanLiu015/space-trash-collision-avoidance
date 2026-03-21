@@ -175,8 +175,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* Bottom: Prediction Analysis */}
-          <PredictionAnalysis selectedAlert={alerts[0]} />
+          {/* Bottom: Prediction Analysis — only shown when a satellite is selected */}
+          <PredictionAnalysis selectedSat={selectedSat} satellites={satellites} />
         </div>
 
         {/* Right: Collision Alerts */}
