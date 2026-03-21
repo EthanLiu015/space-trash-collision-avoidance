@@ -45,12 +45,13 @@ export default function PredictionAnalysis({ selectedAlert }) {
 
       <div className="grid grid-cols-2 gap-4 h-32">
         {/* Distance Chart */}
-        <div>
-          <div className="text-xs text-slate-500 mb-1 flex items-center gap-2">
+        <div className="flex flex-col h-full">
+          <div className="shrink-0 text-xs text-slate-500 mb-1 flex items-center gap-2">
             <span className="w-2 h-0.5 bg-blue-400 inline-block" />
             Distance (km)
             <span className="text-red-400 ml-auto">— Collision Threshold</span>
           </div>
+          <div className="flex-1 min-h-0">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={distanceData} margin={{ top: 2, right: 4, left: -20, bottom: 0 }}>
               <defs>
@@ -67,15 +68,17 @@ export default function PredictionAnalysis({ selectedAlert }) {
               <Area type="monotone" dataKey="distance" stroke="#3b82f6" fill="url(#distGrad)" dot={false} strokeWidth={1.5} />
             </AreaChart>
           </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Probability Chart */}
-        <div>
-          <div className="text-xs text-slate-500 mb-1 flex items-center gap-2">
+        <div className="flex flex-col h-full">
+          <div className="shrink-0 text-xs text-slate-500 mb-1 flex items-center gap-2">
             <span className="w-2 h-0.5 bg-red-400 inline-block" />
             Collision Probability (%)
             <span className="text-green-400 ml-auto">— Safe Zone</span>
           </div>
+          <div className="flex-1 min-h-0">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={probabilityData} margin={{ top: 2, right: 4, left: -20, bottom: 0 }}>
               <defs>
@@ -92,6 +95,7 @@ export default function PredictionAnalysis({ selectedAlert }) {
               <Area type="monotone" dataKey="probability" stroke="#ef4444" fill="url(#probGrad)" dot={false} strokeWidth={1.5} />
             </AreaChart>
           </ResponsiveContainer>
+          </div>
         </div>
       </div>
     </div>
