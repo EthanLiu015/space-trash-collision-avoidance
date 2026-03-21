@@ -139,7 +139,7 @@ export default function App() {
             <Globe
               satellites={globeSatellites}
               alerts={alerts}
-              selectedSatId={selectedSat?.id}
+              selectedSatId={selectedSat?.norad}
               onSelectSat={setSelectedSat}
               isPlaying={isPlaying}
               simSpeed={simSpeed}
@@ -176,8 +176,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* Bottom: Prediction Analysis */}
-          <PredictionAnalysis selectedAlert={alerts[0]} />
+          {/* Bottom: Prediction Analysis — only shown when a satellite is selected */}
+          <PredictionAnalysis selectedSat={selectedSat} satellites={satellites} />
         </div>
 
         {/* Right: Collision Alerts */}
