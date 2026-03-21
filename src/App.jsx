@@ -15,6 +15,8 @@ export default function App() {
   const [isPlaying, setIsPlaying] = useState(true)
   const [simSpeed, setSimSpeed] = useState(1)
   const [simTime, setSimTime] = useState(new Date())
+  const simBaseRealRef = useRef(Date.now())   // wall-clock ms when sim last resumed/stepped
+  const simBaseSimRef = useRef(new Date())    // sim time at that same moment
   const [selectedSat, setSelectedSat] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [satellites, setSatellites] = useState([])
@@ -59,14 +61,18 @@ export default function App() {
     return () => clearInterval(interval)
   }, [])
 
-  // Simulation clock
+  // Simulation clock — anchored to wall clock to prevent drift
   useEffect(() => {
     if (!isPlaying) return
+    // Reset base references when play resumes or speed changes
+    simBaseRealRef.current = Date.now()
+    simBaseSimRef.current = simTime
     const interval = setInterval(() => {
-      setSimTime((prev) => new Date(prev.getTime() + simSpeed * 1000))
-    }, 1000)
+      const elapsed = Date.now() - simBaseRealRef.current
+      setSimTime(new Date(simBaseSimRef.current.getTime() + elapsed * simSpeed))
+    }, 250)
     return () => clearInterval(interval)
-  }, [isPlaying, simSpeed])
+  }, [isPlaying, simSpeed]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Filter satellites based on tab and search
   const filteredSatellites = satellites.filter((sat) => {
@@ -90,11 +96,21 @@ export default function App() {
   })()
 
   const handleStepForward = () => {
-    setSimTime((prev) => new Date(prev.getTime() + 60 * 1000))
+    setSimTime((prev) => {
+      const next = new Date(prev.getTime() + 60 * 1000)
+      simBaseRealRef.current = Date.now()
+      simBaseSimRef.current = next
+      return next
+    })
   }
 
   const handleStepBack = () => {
-    setSimTime((prev) => new Date(prev.getTime() - 60 * 1000))
+    setSimTime((prev) => {
+      const next = new Date(prev.getTime() - 60 * 1000)
+      simBaseRealRef.current = Date.now()
+      simBaseSimRef.current = next
+      return next
+    })
   }
 
   return (
