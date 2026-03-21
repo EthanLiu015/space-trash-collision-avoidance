@@ -40,8 +40,8 @@ function AlertCard({ alert, onSelect, isSelected }) {
         </div>
         <div className="flex justify-between">
           <span className="text-slate-400">Probability:</span>
-          <span className={`font-bold ${alert.probability > 50 ? 'text-red-400' : alert.probability > 20 ? 'text-orange-400' : 'text-yellow-400'}`}>
-            {alert.probability}%
+          <span className={`font-bold font-mono ${alert.probability != null && alert.probability > 0.5 ? 'text-red-400' : alert.probability != null && alert.probability > 0.2 ? 'text-orange-400' : 'text-yellow-400'}`}>
+            {alert.probability != null ? Number(alert.probability).toFixed(6) : '—'}
           </span>
         </div>
         <div className="flex justify-between">
@@ -66,7 +66,7 @@ function AvoidanceCard({ alert }) {
       <div className="text-xs text-slate-300 space-y-1">
         <div className="flex items-start gap-2">
           <span className="text-green-400 mt-0.5">&#8594;</span>
-          <span>Move <strong className="text-white">+{alert.altitudeChange} km altitude</strong> &rarr; risk drops <strong className="text-green-400">{alert.probability}% &rarr; {alert.riskAfterManeuver}%</strong></span>
+          <span>Move <strong className="text-white">+{alert.altitudeChange} km altitude</strong> &rarr; risk drops <strong className="text-green-400">{alert.probability != null ? Number(alert.probability).toFixed(6) : '—'} &rarr; {alert.riskAfterManeuver != null ? Number(alert.riskAfterManeuver).toFixed(6) : '—'}</strong></span>
         </div>
         <div className="flex items-start gap-2">
           <span className="text-blue-400 mt-0.5">&Delta;v</span>
