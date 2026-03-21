@@ -128,13 +128,34 @@ export async function fetchCollisionAlerts() {
 
 /** Re-run close-approach screening and return fresh alerts (slower, ~1s for 24k objects). */
 export async function fetchCollisionRefresh() {
-  try {
-    const res = await fetch(`${API_BASE}/collisions/refresh`)
-    if (!res.ok) throw new Error('API unavailable')
-    const data = await res.json()
-    return { alerts: data.pairs.map(transformAlert), live: true }
-  } catch {
-    return { alerts: await loadCollisionAlertsFromStatic(), live: false }
+  const res = await fetch('http://localhost:8000/collisions/refresh')
+  if (!res.ok) {
+    throw new Error('Failed to refresh collision alerts')
+  }
+
+  const data = await res.json()
+
+  const rawPairs = Array.isArray(data.pairs)
+    ? data.pairs
+    : Array.isArray(data.close_approaches?.pairs)
+      ? data.close_approaches.pairs
+      : []
+
+  const alerts = rawPairs.map((pair, index) => ({
+    id: `${pair.norad_a}-${pair.norad_b}-${pair.epoch_utc ?? index}`,
+    objectA: pair.object_a,
+    objectB: pair.object_b,
+    noradA: pair.norad_a,
+    noradB: pair.norad_b,
+    closestApproachKm: pair.distance_km,
+    relativeVelocityKms: pair.relative_velocity_km_s,
+    probability: pair.collision_probability,
+    epoch_utc: pair.epoch_utc,
+  }))
+
+  return {
+    alerts,
+    live: true,
   }
 }
 

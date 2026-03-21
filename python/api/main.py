@@ -20,6 +20,8 @@ from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from api.routes.simulate import router as simulate_router
+
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -196,6 +198,7 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+app.include_router(simulate_router, prefix="/api")
 
 app.add_middleware(
     CORSMiddleware,
