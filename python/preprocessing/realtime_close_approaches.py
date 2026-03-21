@@ -34,6 +34,8 @@ except ImportError:
 THRESHOLD_KM = 5.0
 # Minimum distance: exclude pairs at or below this (e.g. docked/combined objects)
 MIN_DISTANCE_KM = 0.01
+# Minimum relative velocity (km/s): exclude formation-flying pairs (low v_rel = intentional proximity)
+MIN_RELATIVE_VELOCITY_KM_S = 0.3  # Formation flyers typically < 0.1 km/s; true close approaches >> 0.5 km/s
 
 
 def find_close_approaches_optimized(
@@ -79,13 +81,20 @@ def find_close_approaches_optimized(
             dz = ri["z_km"] - rj["z_km"]
             dist = (dx * dx + dy * dy + dz * dz) ** 0.5
 
-            if MIN_DISTANCE_KM < dist <= threshold_km:
+            # Exclude formation-flying pairs (low relative velocity = intentional proximity)
+            dvx = ri["vx_kms"] - rj["vx_kms"]
+            dvy = ri["vy_kms"] - rj["vy_kms"]
+            dvz = ri["vz_kms"] - rj["vz_kms"]
+            v_rel = (dvx * dvx + dvy * dvy + dvz * dvz) ** 0.5
+
+            if MIN_DISTANCE_KM < dist <= threshold_km and v_rel >= MIN_RELATIVE_VELOCITY_KM_S:
                 close_pairs.append({
                     "object_a": ri["object_name"],
                     "norad_a": ri["norad_id"],
                     "object_b": rj["object_name"],
                     "norad_b": rj["norad_id"],
                     "distance_km": round(dist, 4),
+                    "relative_velocity_km_s": round(v_rel, 4),
                     "epoch_utc": ri["epoch_utc"],
                 })
 
@@ -107,6 +116,7 @@ def run_screen(limit: int | None, output_path: Path) -> int:
         json.dump({
             "threshold_km": 5.0,
             "min_distance_km": MIN_DISTANCE_KM,
+            "min_relative_velocity_km_s": MIN_RELATIVE_VELOCITY_KM_S,
             "epoch_utc": ref_time.isoformat(),
             "objects_screened": len(records),
             "close_pairs": len(close_filtered),

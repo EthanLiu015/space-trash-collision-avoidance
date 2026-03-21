@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+
+const MAX_FEED_ITEMS = 50
 
 const TYPE_COLORS = {
   alert: 'text-red-400',
@@ -38,25 +40,32 @@ function formatEpochTime(epochUtc) {
   }
 }
 
-export default function LiveFeed({ alerts = [], objectCount = 0, onRefresh, live = false, filter, onFilterChange }) {
+export default function LiveFeed({ alerts = [], objectCount = 0, onRefresh, live = false, filter, onFilterChange, simTime }) {
   const [feedItems, setFeedItems] = useState([])
   const [refreshing, setRefreshing] = useState(false)
+  const shownIdsRef = useRef(new Set())
 
-  // Convert alerts to feed items whenever alerts change
+  // Only add NEW close approaches to the feed (ones we haven't shown before)
   useEffect(() => {
-    const items = alerts.map((alert) => {
+    const newAlerts = alerts.filter((alert) => !shownIdsRef.current.has(alert.id))
+    if (newAlerts.length === 0) return
+
+    for (const alert of newAlerts) shownIdsRef.current.add(alert.id)
+
+    const timestamp = simTime ? formatEpochTime(simTime.toISOString()) : formatEpochTime(null)
+    const newItems = newAlerts.map((alert) => {
       const type = alertToFeedType(alert)
       return {
         id: alert.id,
         type,
         icon: feedTypeIcon(type),
         message: `Close approach: ${alert.objectA} / ${alert.objectB} (${alert.closestApproach})`,
-        time: formatEpochTime(alert.epoch_utc),
+        time: timestamp,
         probability: alert.probability,
       }
     })
-    setFeedItems(items)
-  }, [alerts])
+    setFeedItems((prev) => [...newItems, ...prev].slice(0, MAX_FEED_ITEMS))
+  }, [alerts, simTime])
 
   const handleRefresh = async () => {
     if (refreshing || !onRefresh) return
@@ -106,7 +115,7 @@ export default function LiveFeed({ alerts = [], objectCount = 0, onRefresh, live
       <div className="flex-1 overflow-y-auto px-2 py-1 space-y-1">
         {filtered.length === 0 ? (
           <div className="text-xs text-slate-500 py-4 text-center">
-            {alerts.length === 0 ? 'Loading close approach data...' : 'No close approaches match filter'}
+            {alerts.length === 0 ? 'Loading close approach data...' : 'No new close approaches'}
           </div>
         ) : (
           filtered.map((item) => (

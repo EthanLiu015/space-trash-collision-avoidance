@@ -7,6 +7,7 @@ import PredictionAnalysis from './components/PredictionAnalysis.jsx'
 import { fetchActiveSatellites, fetchCollisionRefresh } from './api/satellites.js'
 
 const MAX_GLOBE_OBJECTS = 500
+const MAX_PERSISTED_ALERTS = 50  // Cap to avoid unbounded growth
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('All Objects')
@@ -28,8 +29,15 @@ export default function App() {
     refreshingRef.current = true
     try {
       const { alerts: fresh, live } = await fetchCollisionRefresh()
-      setAlerts(fresh)
       setCollisionDataLive(live)
+      // Persist: merge fresh with previous — once a close approach appears, it stays
+      setAlerts((prev) => {
+        const byId = new Map(prev.map((a) => [a.id, a]))
+        for (const a of fresh) byId.set(a.id, a)
+        const merged = Array.from(byId.values())
+        merged.sort((a, b) => (b.epoch_utc || '').localeCompare(a.epoch_utc || ''))
+        return merged.slice(0, MAX_PERSISTED_ALERTS)
+      })
     } finally {
       refreshingRef.current = false
     }
@@ -45,11 +53,11 @@ export default function App() {
       .finally(() => setLoading(false))
   }, [])
 
-  // Reload close-approach data every 2 seconds (re-runs screening for fresh results)
+  // Reload close-approach data — interval scales with simSpeed so fast sim gets fresher data
   useEffect(() => {
-    const interval = setInterval(runCollisionRefresh, 2000)
+    const interval = setInterval(runCollisionRefresh, Math.max(500, 2000 / simSpeed))
     return () => clearInterval(interval)
-  }, [])
+  }, [simSpeed])
 
   // Simulation clock
   useEffect(() => {
@@ -65,13 +73,14 @@ export default function App() {
     if (activeTab === 'Active Satellites') return sat.type === 'active'
     if (activeTab === 'Debris') return sat.type === 'debris'
     return true
-  }).filter((sat) =>
-    searchQuery === '' || sat.id.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  }).filter((sat) => {
+    if (searchQuery === '') return true
+    const q = searchQuery.toLowerCase().trim()
+    return (sat.id ?? '').toLowerCase().includes(q) || String(sat.norad ?? '').includes(q)
+  })
 
   // Cap what's rendered on the globe for performance.
-  // For "All Objects", show up to MAX_GLOBE_OBJECTS of each type so all three are visually distinct.
-  // For single-type tabs, just slice.
+  // For "All Objects", sample up to MAX_GLOBE_OBJECTS of each type so all three are visually distinct.
   const globeSatellites = (() => {
     if (activeTab !== 'All Objects') return filteredSatellites.slice(0, MAX_GLOBE_OBJECTS)
     const active = filteredSatellites.filter(s => s.type === 'active').slice(0, MAX_GLOBE_OBJECTS)
@@ -114,6 +123,7 @@ export default function App() {
           live={collisionDataLive}
           filter={filter}
           onFilterChange={setFilter}
+          simTime={simTime}
         />
 
         {/* Center: Globe */}
