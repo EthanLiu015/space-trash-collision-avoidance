@@ -30,7 +30,7 @@ function EarthTextured() {
   const meshRef = useRef()
   const texture = useTexture('/8k_earth_daymap.jpg')
   useFrame((_, delta) => {
-    if (meshRef.current) meshRef.current.rotation.y += delta * 0.05
+    if (meshRef.current) meshRef.current.rotation.y += delta * 0.005
   })
   return (
     <mesh ref={meshRef}>
@@ -43,7 +43,7 @@ function EarthTextured() {
 function EarthFallback() {
   const meshRef = useRef()
   useFrame((_, delta) => {
-    if (meshRef.current) meshRef.current.rotation.y += delta * 0.05
+    if (meshRef.current) meshRef.current.rotation.y += delta * 0.005
   })
   return (
     <mesh ref={meshRef}>
@@ -56,7 +56,7 @@ function EarthFallback() {
 function Earth() {
   const atmosphereRef = useRef()
   useFrame((_, delta) => {
-    if (atmosphereRef.current) atmosphereRef.current.rotation.y += delta * 0.05
+    if (atmosphereRef.current) atmosphereRef.current.rotation.y += delta * 0.005
   })
   return (
     <group>
