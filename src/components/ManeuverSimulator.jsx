@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-export default function ManeuverSimulator({ selectedAlert }) {
+export default function ManeuverSimulator({ selectedAlert, onClose }) {
   const [maneuver, setManeuver] = useState({
     deltaAltKm: 2,
     delayMin: 10,
@@ -75,6 +75,7 @@ export default function ManeuverSimulator({ selectedAlert }) {
         <h3 className="text-sm font-semibold tracking-wide text-slate-100">
           WHAT-IF MANEUVER SIMULATOR
         </h3>
+        <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors">&#10005;</button>
       </div>
 
       {selectedAlert ? (

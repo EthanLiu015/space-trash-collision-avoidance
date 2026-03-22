@@ -216,7 +216,7 @@ function SceneContent({ satellites, highlightedNoradIds, collisionPositionOverri
       <group key={activeTab}>
         {satellites.map((sat) => (
           <OrbitTrail
-            key={`trail-${sat.id}`}
+            key={`trail-${sat.norad}`}
             altitude={sat.altitude}
             inclination={sat.inclination}
             raan={sat.raan}
@@ -227,7 +227,7 @@ function SceneContent({ satellites, highlightedNoradIds, collisionPositionOverri
 
         {satellites.map((sat) => (
           <Satellite
-            key={sat.id}
+            key={sat.norad}
             satellite={sat}
             isHighlighted={highlightedNoradIds.has(sat.norad)}
             positionOverride={collisionPositionOverrides?.get(sat.norad) ?? null}

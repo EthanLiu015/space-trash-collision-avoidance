@@ -19,6 +19,7 @@ export default function App() {
   const [simTime, setSimTime] = useState(new Date())
   const [selectedSat, setSelectedSat] = useState(null)
   const [selectedAlert, setSelectedAlert] = useState(null)
+  const [showManeuver, setShowManeuver] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedSearchSatellite, setSelectedSearchSatellite] = useState(null)
   const [satellites, setSatellites] = useState([])
@@ -104,8 +105,9 @@ export default function App() {
     if (selectedAlert?.noradA != null) ids.add(selectedAlert.noradA)
     if (selectedAlert?.noradB != null) ids.add(selectedAlert.noradB)
     if (searchedSatellite?.norad != null) ids.add(searchedSatellite.norad)
+    if (selectedSat?.norad != null) ids.add(selectedSat.norad)
     return ids
-  }, [selectedAlert?.noradA, selectedAlert?.noradB, searchedSatellite?.norad])
+  }, [selectedAlert?.noradA, selectedAlert?.noradB, searchedSatellite?.norad, selectedSat?.norad])
 
   // When a collision is selected, use TCA positions so the two dots appear near each other
   const collisionPositionOverrides = useMemo(() => {
@@ -247,14 +249,16 @@ export default function App() {
           </div>
 
           <PredictionAnalysis selectedAlert={selectedAlert} />
-          <ManeuverSimulator selectedAlert={selectedAlert} />
+          {showManeuver && selectedAlert && (
+            <ManeuverSimulator selectedAlert={selectedAlert} onClose={() => setShowManeuver(false)} />
+          )}
         </div>
 
         <CollisionAlerts
           alerts={alerts}
           live={collisionDataLive}
           selectedAlert={selectedAlert}
-          onSelectAlert={setSelectedAlert}
+          onSelectAlert={(alert) => { setSelectedAlert(alert); setShowManeuver(true) }}
         />
       </div>
     </div>
