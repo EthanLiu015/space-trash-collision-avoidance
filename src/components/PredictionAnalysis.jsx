@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
   ResponsiveContainer,
@@ -52,9 +52,11 @@ const CustomTooltip = ({ active, payload, label, unit }) => {
   return null
 }
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
 // Inner component — only mounts when selectedSat is defined, so hooks are safe
 function PredictionAnalysisInner({ selectedSat, satellites }) {
-  const { closestSat, distanceData } = useMemo(() => {
+  const { closestSat, distanceData, relativeVelocity } = useMemo(() => {
     const sx = selectedSat.x_km ?? 0
     const sy = selectedSat.y_km ?? 0
     const sz = selectedSat.z_km ?? 0
@@ -70,7 +72,7 @@ function PredictionAnalysisInner({ selectedSat, satellites }) {
       if (d < minDist) { minDist = d; closest = sat }
     }
 
-    if (!closest) return { closestSat: null, distanceData: [] }
+    if (!closest) return { closestSat: null, distanceData: [], relativeVelocity: 0 }
 
     const speedA = orbitalSpeedDegPerSec(selectedSat.altitude)
     const speedB = orbitalSpeedDegPerSec(closest.altitude)
@@ -85,17 +87,44 @@ function PredictionAnalysisInner({ selectedSat, satellites }) {
       data.push({ t, distance: parseFloat(dist.toFixed(2)), threshold: 5 })
     }
 
-    return { closestSat: closest, distanceData: data }
+    // Approximate relative velocity from velocity vectors
+    const dvx = (selectedSat.vx_kms ?? 0) - (closest.vx_kms ?? 0)
+    const dvy = (selectedSat.vy_kms ?? 0) - (closest.vy_kms ?? 0)
+    const dvz = (selectedSat.vz_kms ?? 0) - (closest.vz_kms ?? 0)
+    const relVel = Math.sqrt(dvx * dvx + dvy * dvy + dvz * dvz)
+
+    return { closestSat: closest, distanceData: data, relativeVelocity: relVel }
   }, [selectedSat.norad, satellites])
 
-  // Makeshift probability — regenerated per selected satellite
-  const probabilityData = useMemo(() => (
-    Array.from({ length: 61 }, (_, i) => ({
-      t: i,
-      probability: Math.min(95, Math.max(0, 82 * Math.exp(-Math.pow((i - 25) / 7, 2)) + (Math.random() - 0.5) * 4)),
-      safe: 10,
-    }))
-  ), [selectedSat.norad])
+  // Fetch ML probabilities from backend for each time step
+  const [probabilityData, setProbabilityData] = useState([])
+  useEffect(() => {
+    if (!closestSat || distanceData.length === 0) return
+    const distances = distanceData.map((d) => d.distance)
+    fetch(`${API_BASE}/api/probability-timeline`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        noradA: selectedSat.norad,
+        noradB: closestSat.norad,
+        relativeVelocityKms: relativeVelocity,
+        distances,
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.probabilities) {
+          setProbabilityData(
+            data.probabilities.map((prob, i) => ({
+              t: i,
+              probability: parseFloat((prob * 100).toFixed(4)),
+              safe: 1,
+            }))
+          )
+        }
+      })
+      .catch(() => {})
+  }, [selectedSat.norad, closestSat?.norad])
 
   return (
     <div className="h-48 shrink-0 bg-space-900 border-t border-blue-900/40 px-4 py-2">
@@ -141,8 +170,7 @@ function PredictionAnalysisInner({ selectedSat, satellites }) {
         <div className="flex flex-col h-full">
           <div className="shrink-0 text-xs text-slate-500 mb-1 flex items-center gap-2">
             <span className="w-2 h-0.5 bg-red-400 inline-block" />
-            Collision Probability (%)
-            <span className="text-green-400 ml-auto">— Safe Zone</span>
+            Collision Probability (%) — ML Model
           </div>
           <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
@@ -154,10 +182,9 @@ function PredictionAnalysisInner({ selectedSat, satellites }) {
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1e3a6e30" />
-                <XAxis dataKey="t" tick={{ fill: '#64748b', fontSize: 9 }} interval={14} />
-                <YAxis tick={{ fill: '#64748b', fontSize: 9 }} domain={[0, 100]} />
+                <XAxis dataKey="t" tick={{ fill: '#64748b', fontSize: 9 }} interval={14} label={{ value: 'sec', position: 'insideBottomRight', offset: 0, fill: '#475569', fontSize: 9 }} />
+                <YAxis tick={{ fill: '#64748b', fontSize: 9 }} />
                 <Tooltip content={<CustomTooltip unit="%" />} />
-                <ReferenceLine y={10} stroke="#22c55e" strokeDasharray="3 3" label={{ value: 'Safe', fill: '#22c55e', fontSize: 9 }} />
                 <Area type="monotone" dataKey="probability" stroke="#ef4444" fill="url(#probGrad)" dot={false} strokeWidth={1.5} />
               </AreaChart>
             </ResponsiveContainer>

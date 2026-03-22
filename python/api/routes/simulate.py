@@ -21,6 +21,13 @@ class ManeuverInput(BaseModel):
     deltaIncDeg: float = 0
 
 
+class ProbabilityTimelineRequest(BaseModel):
+    noradA: int
+    noradB: int
+    relativeVelocityKms: float
+    distances: list[float]  # distance in km at each time step
+
+
 class SimulationRequest(BaseModel):
     objectA: str
     objectB: str
@@ -210,3 +217,34 @@ def simulate_maneuver(req: SimulationRequest, request: Request):
         "deltaV": round(delta_v, 3),
         "recommendation": recommendation,
     }
+
+
+@router.post("/probability-timeline")
+def probability_timeline(req: ProbabilityTimelineRequest, request: Request):
+    """Return ML collision probability for each time step given a distance series."""
+    orbital_by_norad = getattr(request.app.state, "orbital_by_norad", None) or {}
+    model_path = PYTHON_DIR / "ml" / "risk_model.json"
+
+    orb_a = orbital_by_norad.get(req.noradA)
+    orb_b = orbital_by_norad.get(req.noradB)
+
+    if not orb_a or not orb_b or not model_path.exists():
+        return {"probabilities": None, "source": "unavailable"}
+
+    try:
+        from ml.risk_model import build_features_from_pair, predict_probability
+
+        probabilities = []
+        for dist_km in req.distances:
+            features = build_features_from_pair(
+                max(dist_km, 0.001),
+                req.relativeVelocityKms,
+                orb_a,
+                orb_b,
+            )
+            prob = predict_probability(features)
+            probabilities.append(round(float(prob), 8))
+
+        return {"probabilities": probabilities, "source": "ml"}
+    except Exception as e:
+        return {"probabilities": None, "source": "error", "detail": str(e)}
