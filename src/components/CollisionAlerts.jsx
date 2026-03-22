@@ -12,16 +12,16 @@ const RISK_BADGE = {
   LOW: 'bg-green-700 text-white',
 }
 
-function getRiskLabel(probabilityPercent) {
-  if (probabilityPercent >= 50) return 'CRITICAL'
-  if (probabilityPercent >= 20) return 'HIGH'
-  if (probabilityPercent >= 5) return 'MEDIUM'
+function getRiskLabel(prob) {
+  if (prob != null && prob >= 0.5) return 'CRITICAL'
+  if (prob != null && prob >= 0.2) return 'HIGH'
+  if (prob != null && prob >= 0.05) return 'MEDIUM'
   return 'LOW'
 }
 
 function AlertCard({ alert, onSelect, isSelected }) {
-  const probabilityPercent = Number(alert.probability ?? 0)
-  const risk = alert.risk || getRiskLabel(probabilityPercent)
+  const prob = alert.probability
+  const risk = alert.risk || getRiskLabel(prob)
 
   return (
     <div
@@ -53,15 +53,15 @@ function AlertCard({ alert, onSelect, isSelected }) {
         <div className="flex justify-between">
           <span className="text-slate-400">Probability:</span>
           <span
-            className={`font-bold ${
-              probabilityPercent > 50
+            className={`font-bold font-mono ${
+              prob != null && prob >= 0.5
                 ? 'text-red-400'
-                : probabilityPercent > 20
-                ? 'text-orange-400'
-                : 'text-yellow-400'
+                : prob != null && prob >= 0.2
+                  ? 'text-orange-400'
+                  : 'text-yellow-400'
             }`}
           >
-            {probabilityPercent.toFixed(2)}%
+            {prob != null ? Number(prob).toFixed(6) : '—'}
           </span>
         </div>
 
@@ -86,8 +86,8 @@ function AlertCard({ alert, onSelect, isSelected }) {
 }
 
 function AvoidanceCard({ alert }) {
-  const probabilityPercent = Number(alert.probability ?? 0)
-  const newProbability = Math.max(probabilityPercent * 0.35, 0.1).toFixed(2)
+  const prob = alert.probability
+  const newProb = prob != null ? Math.max(prob * 0.35, 0.000001) : null
   const estimatedDeltaV = Math.max(
     2,
     Math.round(
@@ -107,8 +107,8 @@ function AvoidanceCard({ alert }) {
           <span className="text-green-400 mt-0.5">&#8594;</span>
           <span>
             Raise orbit by <strong className="text-white">+2.0 km</strong> to reduce risk from{' '}
-            <strong className="text-yellow-300">{probabilityPercent.toFixed(2)}%</strong> to{' '}
-            <strong className="text-green-400">{newProbability}%</strong>
+            <strong className="text-yellow-300 font-mono">{prob != null ? Number(prob).toFixed(6) : '—'}</strong> to{' '}
+            <strong className="text-green-400 font-mono">{newProb != null ? Number(newProb).toFixed(6) : '—'}</strong>
           </span>
         </div>
 

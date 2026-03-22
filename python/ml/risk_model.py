@@ -159,6 +159,25 @@ def build_features_from_pair(
     }
 
 
+def build_features_for_maneuver(
+    base_features: dict,
+    new_miss_distance_km: float,
+    delta_alt_km: float,
+    delta_inc_deg: float,
+) -> dict:
+    """
+    Build features for maneuver-modified scenario. Target (t_*) is the maneuvering object.
+    Altitude change shifts SMA and apogee/perigee; inclination change updates inc.
+    """
+    out = base_features.copy()
+    out["miss_distance"] = new_miss_distance_km * 1000  # m
+    out["t_j2k_sma"] = base_features["t_j2k_sma"] + delta_alt_km
+    out["t_j2k_inc"] = base_features["t_j2k_inc"] + delta_inc_deg
+    out["t_h_apo"] = base_features["t_h_apo"] + delta_alt_km
+    out["t_h_per"] = base_features["t_h_per"] + delta_alt_km
+    return out
+
+
 def main():
     import argparse
     parser = argparse.ArgumentParser(description="Train XGBoost risk prediction model")

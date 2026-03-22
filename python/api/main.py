@@ -176,6 +176,7 @@ def _run_close_approach_screening() -> dict:
 async def lifespan(app: FastAPI):
     logging.getLogger("api.ml").setLevel(logging.INFO)
     _load_orbital_lookup()
+    app.state.orbital_by_norad = _orbital_by_norad
     _cache["ephemeris"] = _load_ephemeris_csv()
     _cache["ephemeris_by_norad"] = {r["norad_id"]: r for r in _cache["ephemeris"]}
     # Load close approaches: try file first, else run screening on startup

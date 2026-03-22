@@ -40,6 +40,8 @@ export default function ManeuverSimulator({ selectedAlert }) {
         body: JSON.stringify({
           objectA: selectedAlert.objectA,
           objectB: selectedAlert.objectB,
+          noradA: selectedAlert.noradA,
+          noradB: selectedAlert.noradB,
           probability: selectedAlert.probability,
           closestApproachKm: selectedAlert.closestApproachKm,
           relativeVelocityKms: selectedAlert.relativeVelocityKms,
@@ -78,11 +80,16 @@ export default function ManeuverSimulator({ selectedAlert }) {
           </div>
           <div className="mb-1 text-slate-300">
             <span className="font-semibold text-white">Current Probability:</span>{' '}
-            {(selectedAlert.probability * 100).toFixed(2)}%
+            {selectedAlert.probability != null
+              ? Number(selectedAlert.probability).toFixed(6)
+              : '—'}
           </div>
           <div className="text-slate-300">
             <span className="font-semibold text-white">Closest Approach:</span>{' '}
-            {selectedAlert.closestApproachKm.toFixed(2)} km
+            {selectedAlert.closestApproachKm != null
+              ? Number(selectedAlert.closestApproachKm).toFixed(2)
+              : '—'}{' '}
+            km
           </div>
         </div>
       ) : (
@@ -162,11 +169,15 @@ export default function ManeuverSimulator({ selectedAlert }) {
           <div className="grid grid-cols-2 gap-2 text-slate-200 md:grid-cols-3">
             <div>
               <div className="text-slate-400">Old Risk</div>
-              <div className="font-semibold">{result.oldRisk}%</div>
+              <div className="font-semibold font-mono">
+                {result.oldRisk != null ? Number(result.oldRisk).toFixed(6) : '—'}
+              </div>
             </div>
             <div>
               <div className="text-slate-400">New Risk</div>
-              <div className="font-semibold text-green-300">{result.newRisk}%</div>
+              <div className="font-semibold text-green-300 font-mono">
+                {result.newRisk != null ? Number(result.newRisk).toFixed(6) : '—'}
+              </div>
             </div>
             <div>
               <div className="text-slate-400">Δv</div>
