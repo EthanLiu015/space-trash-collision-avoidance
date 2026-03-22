@@ -151,7 +151,7 @@ function Satellite({ satellite, isHighlighted, onClick, simSpeed = 60, positionO
   const color = satellite.type === 'debris' ? '#ef4444' : satellite.type === 'decaying' ? '#f97316' : '#3b82f6'
   const size = isHighlighted ? 0.04 : 0.015
 
-  // When positionOverride is provided (e.g. from selected collision TCA), use fixed position
+  // When collision selected: use exact TCA positions so the two satellites appear close (collision location).
   if (positionOverride && positionOverride.x_km != null && positionOverride.y_km != null && positionOverride.z_km != null) {
     const x = positionOverride.x_km * scale
     const y = positionOverride.y_km * scale

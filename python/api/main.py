@@ -46,9 +46,11 @@ from realtime_close_approaches import (  # noqa: E402
     THRESHOLD_KM,
 )
 
-# Screening: use 50 km radius to get candidates, then filter by probability > 1e-6
-SCREENING_RADIUS_KM = 50.0  # Wider spatial screen to capture pairs that may exceed prob threshold
-MIN_PROBABILITY_THRESHOLD = 0.000001  # Include pairs with collision prob > this
+# Screening: use 50 km radius to get candidates
+# Include pairs that are EITHER within 5km (close approach) OR have probability > 1e-5
+SCREENING_RADIUS_KM = 50.0  # Wider spatial screen to capture candidates
+CLOSE_APPROACH_KM = 5.0  # Pairs within this are always included (classic close approach)
+MIN_PROBABILITY_THRESHOLD = 0.00001  # Pairs beyond 5km need prob > this to be included
 
 # ---------------------------------------------------------------------------
 # Startup cache
@@ -155,17 +157,19 @@ def _load_close_approaches_from_file() -> dict | None:
         _add_collision_probability(pairs, data.get("threshold_km", THRESHOLD_KM))
         pairs = [
             p for p in pairs
-            if p.get("collision_probability") is not None and p["collision_probability"] > MIN_PROBABILITY_THRESHOLD
+            if p["distance_km"] <= CLOSE_APPROACH_KM
+            or (p.get("collision_probability") is not None and p["collision_probability"] > MIN_PROBABILITY_THRESHOLD)
         ]
         data["pairs"] = pairs
         data["min_probability_threshold"] = MIN_PROBABILITY_THRESHOLD
+        data["close_approach_km"] = CLOSE_APPROACH_KM
         return data
     except (json.JSONDecodeError, IOError):
         return None
 
 
 def _run_close_approach_screening() -> dict:
-    """Run SGP4 propagation, screen by distance, compute probability, filter by prob > 1e-6."""
+    """Run SGP4 propagation. Include pairs within 5km OR with probability > 1e-5."""
     now = datetime.now(timezone.utc)
     records = load_and_propagate(COMBINED_CSV, ref_time=now)
     pairs = find_close_approaches_optimized(records, threshold_km=SCREENING_RADIUS_KM)
@@ -173,10 +177,12 @@ def _run_close_approach_screening() -> dict:
     _add_collision_probability(pairs)
     pairs = [
         p for p in pairs
-        if p.get("collision_probability") is not None and p["collision_probability"] > MIN_PROBABILITY_THRESHOLD
+        if p["distance_km"] <= CLOSE_APPROACH_KM
+        or (p.get("collision_probability") is not None and p["collision_probability"] > MIN_PROBABILITY_THRESHOLD)
     ]
     return {
         "threshold_km": SCREENING_RADIUS_KM,
+        "close_approach_km": CLOSE_APPROACH_KM,
         "min_distance_km": MIN_DISTANCE_KM,
         "min_relative_velocity_km_s": MIN_RELATIVE_VELOCITY_KM_S,
         "min_probability_threshold": MIN_PROBABILITY_THRESHOLD,
@@ -200,7 +206,7 @@ async def lifespan(app: FastAPI):
         if COMBINED_CSV.exists():
             data = _run_close_approach_screening()
         else:
-            data = {"threshold_km": SCREENING_RADIUS_KM, "min_distance_km": MIN_DISTANCE_KM, "min_probability_threshold": MIN_PROBABILITY_THRESHOLD, "epoch_utc": None, "pairs": []}
+            data = {"threshold_km": SCREENING_RADIUS_KM, "close_approach_km": CLOSE_APPROACH_KM, "min_distance_km": MIN_DISTANCE_KM, "min_probability_threshold": MIN_PROBABILITY_THRESHOLD, "epoch_utc": None, "pairs": []}
     _cache["close_approaches"] = data
     yield
     _cache.clear()
@@ -251,11 +257,13 @@ def propagate_satellites():
     _add_collision_probability(pairs)
     pairs = [
         p for p in pairs
-        if p.get("collision_probability") is not None and p["collision_probability"] > MIN_PROBABILITY_THRESHOLD
+        if p["distance_km"] <= CLOSE_APPROACH_KM
+        or (p.get("collision_probability") is not None and p["collision_probability"] > MIN_PROBABILITY_THRESHOLD)
     ]
 
     close_data = {
         "threshold_km": SCREENING_RADIUS_KM,
+        "close_approach_km": CLOSE_APPROACH_KM,
         "min_distance_km": MIN_DISTANCE_KM,
         "min_relative_velocity_km_s": MIN_RELATIVE_VELOCITY_KM_S,
         "min_probability_threshold": MIN_PROBABILITY_THRESHOLD,
@@ -265,6 +273,7 @@ def propagate_satellites():
     # Update in-memory cache for /collisions/alerts
     _cache["close_approaches"] = {
         "threshold_km": SCREENING_RADIUS_KM,
+        "close_approach_km": CLOSE_APPROACH_KM,
         "min_distance_km": MIN_DISTANCE_KM,
         "min_relative_velocity_km_s": MIN_RELATIVE_VELOCITY_KM_S,
         "min_probability_threshold": MIN_PROBABILITY_THRESHOLD,
@@ -318,7 +327,7 @@ def get_collision_alerts(
     min_probability: float = Query(default=0.0, ge=0.0, le=1.0),
     max_distance_km: Optional[float] = Query(default=None),
 ):
-    """Return close-approach pairs with collision probability > 1e-6."""
+    """Return close-approach pairs within 5km OR with collision probability > 1e-5."""
     data = _cache.get("close_approaches", {})
     pairs = data.get("pairs", [])
 
