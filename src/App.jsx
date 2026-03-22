@@ -248,7 +248,7 @@ export default function App() {
             </div>
           </div>
 
-          <PredictionAnalysis selectedAlert={selectedAlert} />
+          <PredictionAnalysis selectedSat={selectedSat} satellites={satellites} selectedAlert={selectedAlert} />
           {showManeuver && selectedAlert && (
             <ManeuverSimulator selectedAlert={selectedAlert} onClose={() => setShowManeuver(false)} />
           )}
