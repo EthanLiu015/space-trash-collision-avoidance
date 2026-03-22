@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react'
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
 export default function ManeuverSimulator({ selectedAlert }) {
   const [maneuver, setManeuver] = useState({
     deltaAltKm: 2,
@@ -34,7 +36,7 @@ export default function ManeuverSimulator({ selectedAlert }) {
     setResult(null)
 
     try {
-      const response = await fetch('http://localhost:8000/api/simulate-maneuver', {
+      const response = await fetch(`${API_BASE}/api/simulate-maneuver`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -56,7 +58,12 @@ export default function ManeuverSimulator({ selectedAlert }) {
       const data = await response.json()
       setResult(data)
     } catch (err) {
-      setError(err.message || 'Something went wrong.')
+      const msg = err.message || 'Something went wrong.'
+      setError(
+        msg.includes('fetch')
+          ? `${msg} Is the backend running? Try: npm run dev`
+          : msg
+      )
     } finally {
       setLoading(false)
     }

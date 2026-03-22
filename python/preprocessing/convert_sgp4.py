@@ -5,11 +5,14 @@ Outputs data suitable for collision detection: ECI position (km) and velocity (k
 
 import csv
 import json
-from datetime import datetime, timezone
+import math
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from sgp4 import omm
 from sgp4.api import Satrec, jday
+
+GM_KM3_S2 = 398600.4418
 
 # Paths
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -130,6 +133,80 @@ def load_and_propagate(
                 "altitude_km": round(altitude_km(r), 2),
             })
     return records
+
+
+def load_row_by_norad(csv_path: Path, norad_id: int) -> dict | None:
+    """Load full CSV row for a NORAD ID."""
+    with open(csv_path, newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            try:
+                if int(row.get("NORAD_CAT_ID", 0)) == norad_id:
+                    return row
+            except (ValueError, TypeError):
+                continue
+    return None
+
+
+def create_maneuvered_satrec(row: dict, delta_alt_km: float, delta_inc_deg: float) -> Satrec:
+    """
+    Create Satrec with maneuver applied to target orbit.
+    delta_alt_km: altitude change (adds to SMA)
+    delta_inc_deg: inclination change (degrees)
+    """
+    fields = row_to_omm_fields(row)
+    n_rev_per_day = float(fields.get("MEAN_MOTION", 0)) or 1e-9
+    n_rad_per_sec = n_rev_per_day * (2 * math.pi) / 86400
+    a_km = (GM_KM3_S2 / (n_rad_per_sec ** 2)) ** (1 / 3)
+    new_a = max(R_EARTH_KM + 200, a_km + delta_alt_km)  # avoid invalid orbit
+    new_n_rad_s = (GM_KM3_S2 / (new_a ** 3)) ** 0.5
+    new_mean_motion = new_n_rad_s * 86400 / (2 * math.pi)
+    fields["MEAN_MOTION"] = new_mean_motion
+    fields["INCLINATION"] = float(fields.get("INCLINATION", 0)) + delta_inc_deg
+    sat = Satrec()
+    omm.initialize(sat, fields)
+    return sat
+
+
+def find_miss_distance_and_tca(
+    sat_a: Satrec,
+    sat_b: Satrec,
+    ref_time: datetime,
+    window_hours: float = 24,
+    step_minutes: float = 1,
+) -> tuple[datetime, float, float]:
+    """
+    Propagate both satellites over time window, find Time of Closest Approach and miss distance.
+    Returns (tca, miss_distance_km, relative_velocity_km_s).
+    """
+    step = timedelta(minutes=step_minutes)
+    half_window = timedelta(hours=window_hours / 2)
+    t_start = ref_time - half_window
+    t_end = ref_time + half_window
+
+    min_dist = float("inf")
+    tca = ref_time
+    rel_vel_at_tca = 0.0
+
+    t = t_start
+    while t <= t_end:
+        ra = propagate(sat_a, t)
+        rb = propagate(sat_b, t)
+        if ra is None or rb is None:
+            t += step
+            continue
+        (xa, ya, za), (vxa, vya, vza) = ra
+        (xb, yb, zb), (vxb, vyb, vzb) = rb
+        dx, dy, dz = xa - xb, ya - yb, za - zb
+        dist = (dx * dx + dy * dy + dz * dz) ** 0.5
+        if dist < min_dist:
+            min_dist = dist
+            tca = t
+            dvx, dvy, dvz = vxa - vxb, vya - vyb, vza - vzb
+            rel_vel_at_tca = (dvx * dvx + dvy * dvy + dvz * dvz) ** 0.5
+        t += step
+
+    return (tca, min_dist if min_dist != float("inf") else 0.0, rel_vel_at_tca)
 
 
 def find_close_approaches(
