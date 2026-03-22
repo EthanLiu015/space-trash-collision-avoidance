@@ -168,6 +168,88 @@ def create_maneuvered_satrec(row: dict, delta_alt_km: float, delta_inc_deg: floa
     return sat
 
 
+MIN_DISTANCE_KM = 0.01
+THRESHOLD_KM = 5.0
+MIN_RELATIVE_VELOCITY_KM_S = 0.3
+
+
+def find_encounters_for_satellite(
+    csv_path: Path,
+    norad_id: int,
+    ref_time: datetime | None = None,
+    window_hours: float = 24,
+    step_minutes: float = 5,
+) -> list[dict]:
+    """
+    Find all close encounters (<5km) for a satellite over the next N hours.
+    Returns list of {object_b, norad_b, distance_km, relative_velocity_km_s, tca_utc, minutes_from_now}.
+    """
+    if ref_time is None:
+        ref_time = datetime.now(timezone.utc)
+
+    step = timedelta(minutes=step_minutes)
+    t_end = ref_time + timedelta(hours=window_hours)
+
+    # (pair_key) -> {min_dist, tca, rel_vel, object_b, norad_b}
+    best_by_pair: dict[tuple[int, int], dict] = {}
+
+    t = ref_time
+    while t <= t_end:
+        records = load_and_propagate(csv_path, ref_time=t)
+        idx_by_norad = {r["norad_id"]: i for i, r in enumerate(records)}
+        if norad_id not in idx_by_norad:
+            t += step
+            continue
+        i_target = idx_by_norad[norad_id]
+        rt = records[i_target]
+        xt, yt, zt = rt["x_km"], rt["y_km"], rt["z_km"]
+        vxt, vyt, vzt = rt["vx_kms"], rt["vy_kms"], rt["vz_kms"]
+
+        for j, rj in enumerate(records):
+            if j == i_target:
+                continue
+            dx = xt - rj["x_km"]
+            dy = yt - rj["y_km"]
+            dz = zt - rj["z_km"]
+            dist = (dx * dx + dy * dy + dz * dz) ** 0.5
+            if not (MIN_DISTANCE_KM < dist <= THRESHOLD_KM):
+                continue
+            dvx = vxt - rj["vx_kms"]
+            dvy = vyt - rj["vy_kms"]
+            dvz = vzt - rj["vz_kms"]
+            v_rel = (dvx * dvx + dvy * dvy + dvz * dvz) ** 0.5
+            if v_rel < MIN_RELATIVE_VELOCITY_KM_S:
+                continue
+            pair_key = (min(norad_id, rj["norad_id"]), max(norad_id, rj["norad_id"]))
+            existing = best_by_pair.get(pair_key)
+            if existing is None or dist < existing["distance_km"]:
+                best_by_pair[pair_key] = {
+                    "distance_km": dist,
+                    "tca_utc": t.isoformat(),
+                    "relative_velocity_km_s": v_rel,
+                    "object_b": rj["object_name"],
+                    "norad_b": rj["norad_id"],
+                }
+        t += step
+
+    out = []
+    for data in best_by_pair.values():
+        tca = datetime.fromisoformat(data["tca_utc"].replace("Z", "+00:00"))
+        if tca.tzinfo is None:
+            tca = tca.replace(tzinfo=timezone.utc)
+        delta = (tca - ref_time).total_seconds() / 60
+        out.append({
+            "object_b": data["object_b"],
+            "norad_b": data["norad_b"],
+            "distance_km": round(data["distance_km"], 4),
+            "relative_velocity_km_s": round(data["relative_velocity_km_s"], 4),
+            "tca_utc": data["tca_utc"],
+            "minutes_from_now": round(delta, 1),
+        })
+    out.sort(key=lambda x: x["minutes_from_now"])
+    return out
+
+
 def find_miss_distance_and_tca(
     sat_a: Satrec,
     sat_b: Satrec,

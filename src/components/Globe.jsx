@@ -76,7 +76,7 @@ function Earth({ simSpeed = 1 }) {
   )
 }
 
-function OrbitTrail({ altitude, inclination, raan, color }) {
+function OrbitTrail({ altitude, inclination, raan, color, isHighlighted }) {
   const points = useMemo(() => {
     const pts = []
     for (let i = 0; i <= 128; i++) {
@@ -92,9 +92,12 @@ function OrbitTrail({ altitude, inclination, raan, color }) {
     return geo
   }, [points])
 
+  const opacity = isHighlighted ? 0.95 : 0.3
+  const lineColor = isHighlighted ? '#ffffff' : color
+
   return (
     <line geometry={geometry}>
-      <lineBasicMaterial color={color} transparent opacity={0.3} />
+      <lineBasicMaterial color={lineColor} transparent opacity={opacity} />
     </line>
   )
 }
@@ -117,9 +120,33 @@ function trueAnomalyFromECI(xKm, yKm, zKm, incDeg, raanDeg) {
   return (Math.atan2(sinNu, cosNu) * 180) / Math.PI
 }
 
-function Satellite({ satellite, isHighlighted, onClick, simSpeed = 60 }) {
+function Satellite({ satellite, isHighlighted, onClick, simSpeed = 60, positionOverride = null }) {
   const meshRef = useRef()
-  // Angular propagation keeps objects on orbit path (no drift). Linear ECI integration causes spiral-out.
+  const scale = 1 / R_EARTH_KM
+
+  // When positionOverride is provided (e.g. from selected collision TCA), use fixed position
+  if (positionOverride && positionOverride.x_km != null && positionOverride.y_km != null && positionOverride.z_km != null) {
+    const x = positionOverride.x_km * scale
+    const y = positionOverride.y_km * scale
+    const z = positionOverride.z_km * scale
+    return (
+      <group position={[x, y, z]}>
+        <mesh>
+          <sphereGeometry args={[isHighlighted ? 0.04 : 0.015, 8, 8]} />
+          <meshBasicMaterial color={isHighlighted ? '#ffffff' : (satellite.type === 'debris' ? '#ef4444' : satellite.type === 'decaying' ? '#f97316' : '#3b82f6')} />
+        </mesh>
+        <mesh onClick={onClick}>
+          <sphereGeometry args={[0.04, 6, 6]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
+        {isHighlighted && (
+          <pointLight color={satellite.type === 'debris' ? '#ef4444' : satellite.type === 'decaying' ? '#f97316' : '#3b82f6'} intensity={1} distance={0.35} />
+        )}
+      </group>
+    )
+  }
+
+  // Angular propagation keeps objects on orbit path (no drift)
   const angleRef = useRef((() => {
     if (satellite.x_km != null && satellite.y_km != null && satellite.z_km != null) {
       const nu = trueAnomalyFromECI(
@@ -130,7 +157,6 @@ function Satellite({ satellite, isHighlighted, onClick, simSpeed = 60 }) {
     }
     return Math.random() * 360
   })())
-  // Orbital angular speed (deg/s): T = 2π√(a³/μ), ω = 360/T
   const orbitalSpeed = useMemo(() => {
     const a = R_EARTH_KM + satellite.altitude
     const T = 2 * Math.PI * Math.sqrt(Math.pow(a, 3) / MU_EARTH)
@@ -145,7 +171,7 @@ function Satellite({ satellite, isHighlighted, onClick, simSpeed = 60 }) {
   })
 
   const color = satellite.type === 'debris' ? '#ef4444' : satellite.type === 'decaying' ? '#f97316' : '#3b82f6'
-  const size = isHighlighted ? 0.025 : 0.015
+  const size = isHighlighted ? 0.04 : 0.015
 
   return (
     <group ref={meshRef}>
@@ -160,33 +186,13 @@ function Satellite({ satellite, isHighlighted, onClick, simSpeed = 60 }) {
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
       {isHighlighted && (
-        <pointLight color={color} intensity={0.5} distance={0.2} />
+        <pointLight color={color} intensity={1} distance={0.35} />
       )}
     </group>
   )
 }
 
-function CollisionWarningMarker({ position }) {
-  const ringRef = useRef()
-  useFrame((state) => {
-    if (ringRef.current) {
-      ringRef.current.scale.setScalar(1 + 0.3 * Math.sin(state.clock.elapsedTime * 3))
-      ringRef.current.material.opacity = 0.6 + 0.4 * Math.sin(state.clock.elapsedTime * 3)
-    }
-  })
-
-  return (
-    <group position={position}>
-      <mesh ref={ringRef}>
-        <ringGeometry args={[0.04, 0.055, 32]} />
-        <meshBasicMaterial color="#ef4444" transparent opacity={0.8} side={THREE.DoubleSide} />
-      </mesh>
-      <pointLight color="#ef4444" intensity={1} distance={0.3} />
-    </group>
-  )
-}
-
-function SceneContent({ satellites, alerts, selectedSatId, onSelectSat, isPlaying, simSpeed, activeTab }) {
+function SceneContent({ satellites, highlightedNoradIds, collisionPositionOverrides, onSelectSat, isPlaying, simSpeed, activeTab }) {
   const { camera } = useThree()
 
   // DEBUG: log type breakdown whenever satellites or tab changes
@@ -198,19 +204,6 @@ function SceneContent({ satellites, alerts, selectedSatId, onSelectSat, isPlayin
   useEffect(() => {
     camera.position.set(0, 1.5, 3.5)
   }, [camera])
-
-  // Compute collision positions from actual satellite ECI data
-  const collisionPositions = useMemo(() => {
-    const scale = 1 / R_EARTH_KM
-    return alerts.slice(0, 5).flatMap((alert) => {
-      const satA = satellites.find((s) => s.norad === alert.noradA)
-      const satB = satellites.find((s) => s.norad === alert.noradB)
-      const candidates = [satA, satB].filter(
-        (s) => s && s.x_km != null && s.y_km != null && s.z_km != null
-      )
-      return candidates.map((s) => [s.x_km * scale, s.y_km * scale, s.z_km * scale])
-    })
-  }, [alerts, satellites])
 
   return (
     <>
@@ -230,6 +223,7 @@ function SceneContent({ satellites, alerts, selectedSatId, onSelectSat, isPlayin
             inclination={sat.inclination}
             raan={sat.raan}
             color={sat.type === 'debris' ? '#ef444440' : sat.type === 'decaying' ? '#f9731640' : '#3b82f640'}
+            isHighlighted={highlightedNoradIds.has(sat.norad)}
           />
         ))}
 
@@ -237,16 +231,13 @@ function SceneContent({ satellites, alerts, selectedSatId, onSelectSat, isPlayin
           <Satellite
             key={sat.id}
             satellite={sat}
-            isHighlighted={selectedSatId === sat.norad}
+            isHighlighted={highlightedNoradIds.has(sat.norad)}
+            positionOverride={collisionPositionOverrides?.get(sat.norad) ?? null}
             onClick={() => onSelectSat(sat)}
             simSpeed={simSpeed}
           />
         ))}
       </group>
-
-      {activeTab === 'All Objects' && collisionPositions.map((pos, i) => (
-        <CollisionWarningMarker key={i} position={pos} />
-      ))}
 
       <OrbitControls
         enablePan={false}
@@ -259,7 +250,7 @@ function SceneContent({ satellites, alerts, selectedSatId, onSelectSat, isPlayin
   )
 }
 
-export default function Globe({ satellites, alerts, selectedSatId, onSelectSat, isPlaying, simSpeed, activeTab }) {
+export default function Globe({ satellites, alerts, highlightedNoradIds = new Set(), collisionPositionOverrides = null, onSelectSat, isPlaying, simSpeed, activeTab }) {
   return (
     <Canvas
       camera={{ position: [0, 1.5, 3.5], fov: 45 }}
@@ -268,8 +259,8 @@ export default function Globe({ satellites, alerts, selectedSatId, onSelectSat, 
     >
       <SceneContent
         satellites={satellites}
-        alerts={alerts}
-        selectedSatId={selectedSatId}
+        collisionPositionOverrides={collisionPositionOverrides}
+        highlightedNoradIds={highlightedNoradIds}
         onSelectSat={onSelectSat}
         isPlaying={isPlaying}
         simSpeed={simSpeed}

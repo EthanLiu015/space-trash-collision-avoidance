@@ -2,7 +2,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -72,6 +72,27 @@ def _compute_new_distance_via_sgp4(
     _, new_miss_km, _ = find_miss_distance_and_tca(sat_a_maneuvered, sat_b, ref_time)
 
     return (old_miss_km, new_miss_km)
+
+
+@router.get("/satellite/{norad_id}/encounters")
+def get_satellite_encounters(
+    norad_id: int,
+    hours: float = Query(default=24, ge=1, le=168, description="Hours to look ahead"),
+):
+    """Find all close encounters (<5km) for this satellite over the next N hours."""
+    if not COMBINED_CSV.exists():
+        raise HTTPException(status_code=503, detail="combined_satellites.csv not found")
+    try:
+        from convert_sgp4 import find_encounters_for_satellite
+    except ImportError:
+        raise HTTPException(status_code=503, detail="SGP4 module unavailable")
+    encounters = find_encounters_for_satellite(
+        COMBINED_CSV,
+        norad_id,
+        window_hours=hours,
+        step_minutes=15,
+    )
+    return {"norad_id": norad_id, "hours": hours, "encounters": encounters}
 
 
 def _delta_v(delta_alt: float, delta_inc: float, delay: float) -> float:

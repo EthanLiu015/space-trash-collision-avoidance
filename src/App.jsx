@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import Globe from './components/Globe.jsx'
 import Navbar from './components/Navbar.jsx'
 import LiveFeed from './components/LiveFeed.jsx'
 import CollisionAlerts from './components/CollisionAlerts.jsx'
 import PredictionAnalysis from './components/PredictionAnalysis.jsx'
 import ManeuverSimulator from './components/ManeuverSimulator.jsx'
+import SearchEncounters from './components/SearchEncounters.jsx'
 import { fetchActiveSatellites, fetchCollisionRefresh } from './api/satellites.js'
 
 const MAX_GLOBE_OBJECTS = 500
@@ -19,6 +20,7 @@ export default function App() {
   const [selectedSat, setSelectedSat] = useState(null)
   const [selectedAlert, setSelectedAlert] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedSearchSatellite, setSelectedSearchSatellite] = useState(null)
   const [satellites, setSatellites] = useState([])
   const [alerts, setAlerts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -93,12 +95,48 @@ export default function App() {
       return (sat.id ?? '').toLowerCase().includes(q) || String(sat.norad ?? '').includes(q)
     })
 
+  const searchedSatellite =
+    selectedSearchSatellite ??
+    (searchQuery.trim() && filteredSatellites.length > 0 ? filteredSatellites[0] : null)
+
+  const highlightedNoradIds = useMemo(() => {
+    const ids = new Set()
+    if (selectedAlert?.noradA != null) ids.add(selectedAlert.noradA)
+    if (selectedAlert?.noradB != null) ids.add(selectedAlert.noradB)
+    if (searchedSatellite?.norad != null) ids.add(searchedSatellite.norad)
+    return ids
+  }, [selectedAlert?.noradA, selectedAlert?.noradB, searchedSatellite?.norad])
+
+  // When a collision is selected, use TCA positions so the two dots appear near each other
+  const collisionPositionOverrides = useMemo(() => {
+    if (!selectedAlert?.positionA || !selectedAlert?.positionB) return null
+    const map = new Map()
+    if (selectedAlert.noradA != null) map.set(selectedAlert.noradA, selectedAlert.positionA)
+    if (selectedAlert.noradB != null) map.set(selectedAlert.noradB, selectedAlert.positionB)
+    return map.size > 0 ? map : null
+  }, [selectedAlert?.noradA, selectedAlert?.noradB, selectedAlert?.positionA, selectedAlert?.positionB])
+
   const globeSatellites = (() => {
-    if (activeTab !== 'All Objects') return filteredSatellites.slice(0, MAX_GLOBE_OBJECTS)
-    const active = filteredSatellites.filter((s) => s.type === 'active').slice(0, MAX_GLOBE_OBJECTS)
-    const debris = filteredSatellites.filter((s) => s.type === 'debris').slice(0, MAX_GLOBE_OBJECTS)
-    const decaying = filteredSatellites.filter((s) => s.type === 'decaying').slice(0, MAX_GLOBE_OBJECTS)
-    return [...active, ...debris, ...decaying]
+    let list
+    if (activeTab !== 'All Objects') list = filteredSatellites.slice(0, MAX_GLOBE_OBJECTS)
+    else {
+      const active = filteredSatellites.filter((s) => s.type === 'active').slice(0, MAX_GLOBE_OBJECTS)
+      const debris = filteredSatellites.filter((s) => s.type === 'debris').slice(0, MAX_GLOBE_OBJECTS)
+      const decaying = filteredSatellites.filter((s) => s.type === 'decaying').slice(0, MAX_GLOBE_OBJECTS)
+      list = [...active, ...debris, ...decaying]
+    }
+    if (!selectedAlert) return list
+    const ids = new Set(list.map((s) => s.norad ?? s.id))
+    const extras = []
+    for (const norad of [selectedAlert.noradA, selectedAlert.noradB]) {
+      if (norad == null || ids.has(norad)) continue
+      const sat = satellites.find((s) => (s.norad ?? s.id) === norad)
+      if (sat) {
+        extras.push(sat)
+        ids.add(norad)
+      }
+    }
+    return [...list, ...extras]
   })()
 
   const handleStepForward = () => {
@@ -121,8 +159,12 @@ export default function App() {
         onStepBack={handleStepBack}
         simSpeed={simSpeed}
         onSpeedChange={setSimSpeed}
-        onSearch={setSearchQuery}
+        onSearch={(q) => { setSearchQuery(q); if (!q.trim()) setSelectedSearchSatellite(null) }}
+        filteredSatellites={filteredSatellites}
+        onSelectFromSearch={setSelectedSearchSatellite}
       />
+
+      {searchedSatellite && <SearchEncounters searchedSatellite={searchedSatellite} />}
 
       <div className="flex flex-1 overflow-hidden">
         <LiveFeed
@@ -148,7 +190,8 @@ export default function App() {
             <Globe
               satellites={globeSatellites}
               alerts={alerts}
-              selectedSatId={selectedSat?.id}
+              highlightedNoradIds={highlightedNoradIds}
+              collisionPositionOverrides={collisionPositionOverrides}
               onSelectSat={setSelectedSat}
               isPlaying={isPlaying}
               simSpeed={simSpeed}

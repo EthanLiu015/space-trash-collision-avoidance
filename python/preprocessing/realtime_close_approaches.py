@@ -96,6 +96,8 @@ def find_close_approaches_optimized(
                     "distance_km": round(dist, 4),
                     "relative_velocity_km_s": round(v_rel, 4),
                     "epoch_utc": ri["epoch_utc"],
+                    "position_a": {"x_km": ri["x_km"], "y_km": ri["y_km"], "z_km": ri["z_km"]},
+                    "position_b": {"x_km": rj["x_km"], "y_km": rj["y_km"], "z_km": rj["z_km"]},
                 })
 
     return close_pairs

@@ -128,7 +128,7 @@ export async function fetchCollisionAlerts() {
 
 /** Re-run close-approach screening and return fresh alerts (slower, ~1s for 24k objects). */
 export async function fetchCollisionRefresh() {
-  const res = await fetch('http://localhost:8000/collisions/refresh')
+  const res = await fetch(`${API_BASE}/collisions/refresh`)
   if (!res.ok) {
     throw new Error('Failed to refresh collision alerts')
   }
@@ -151,11 +151,25 @@ export async function fetchCollisionRefresh() {
     relativeVelocityKms: pair.relative_velocity_km_s,
     probability: pair.collision_probability,
     epoch_utc: pair.epoch_utc,
+    positionA: pair.position_a ?? null,
+    positionB: pair.position_b ?? null,
   }))
 
   return {
     alerts,
     live: true,
+  }
+}
+
+/** Fetch all close encounters (<5km) for a satellite in the next N hours. */
+export async function fetchSatelliteEncounters(noradId, hours = 24) {
+  try {
+    const res = await fetch(`${API_BASE}/api/satellite/${noradId}/encounters?hours=${hours}`)
+    if (!res.ok) throw new Error('Failed to fetch encounters')
+    const data = await res.json()
+    return data.encounters ?? []
+  } catch {
+    return []
   }
 }
 
