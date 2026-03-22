@@ -25,6 +25,8 @@ TRAIN_DATA_CSV = PROCESSED_DIR / "risk_train_clean.csv"
 
 FEATURES = [
     "miss_distance",
+    "log_miss_distance",   # ln(d_m); higher when farther → lower prob
+    "inv_miss_distance",   # 1000/d_m; higher when closer → higher prob
     "relative_speed",
     "t_j2k_sma", "t_j2k_ecc", "t_j2k_inc",
     "c_j2k_sma", "c_j2k_ecc", "c_j2k_inc",
@@ -32,10 +34,14 @@ FEATURES = [
 ]
 TARGET = "risk"
 
+# Exclude censored samples: risk=-30 is a floor cap, not true risk
+EXCLUDE_RISK_FLOOR = -29.5  # Drop rows with risk <= this (censored)
+
 
 def load_and_preprocess() -> Tuple[pd.DataFrame, pd.Series]:
     """
     Load risk_train_clean.csv (created by preprocessing/create_risk_train.py).
+    Excludes censored risk=-30 samples so the model learns true distance–risk relationship.
     """
     if not TRAIN_DATA_CSV.exists():
         raise FileNotFoundError(
@@ -47,6 +53,8 @@ def load_and_preprocess() -> Tuple[pd.DataFrame, pd.Series]:
     if missing:
         raise ValueError(f"Missing columns in {TRAIN_DATA_CSV.name}: {missing}")
     df = df[kept].dropna()
+    # Exclude censored samples (risk capped at -30)
+    df = df[df[TARGET] > EXCLUDE_RISK_FLOOR]
     X = df[FEATURES]
     y = df[TARGET]
     return X, y
@@ -143,8 +151,11 @@ def build_features_from_pair(
     ecc_b = float(orb_b["ECCENTRICITY"])
     h_apo_b, h_per_b = h_apo_per(sma_b, ecc_b)
 
+    miss_m = distance_km * 1000  # m
     return {
-        "miss_distance": distance_km * 1000,  # m
+        "miss_distance": miss_m,
+        "log_miss_distance": float(np.log(max(miss_m, 1))),  # avoid log(0)
+        "inv_miss_distance": 1000.0 / max(miss_m, 1),  # 1/d_km scale
         "relative_speed": relative_velocity_km_s * 1000,  # m/s
         "t_j2k_sma": sma_a,
         "t_j2k_ecc": ecc_a,
@@ -169,8 +180,11 @@ def build_features_for_maneuver(
     Build features for maneuver-modified scenario. Target (t_*) is the maneuvering object.
     Altitude change shifts SMA and apogee/perigee; inclination change updates inc.
     """
+    miss_m = new_miss_distance_km * 1000  # m
     out = base_features.copy()
-    out["miss_distance"] = new_miss_distance_km * 1000  # m
+    out["miss_distance"] = miss_m
+    out["log_miss_distance"] = float(np.log(max(miss_m, 1)))
+    out["inv_miss_distance"] = 1000.0 / max(miss_m, 1)
     out["t_j2k_sma"] = base_features["t_j2k_sma"] + delta_alt_km
     out["t_j2k_inc"] = base_features["t_j2k_inc"] + delta_inc_deg
     out["t_h_apo"] = base_features["t_h_apo"] + delta_alt_km
@@ -194,6 +208,8 @@ def main():
             sys.exit(1)
         feat = {
             "miss_distance": 2392.0,
+            "log_miss_distance": np.log(2392.0),
+            "inv_miss_distance": 1000.0 / 2392.0,
             "relative_speed": 3434.0,
             "t_j2k_sma": 7001.53,
             "t_j2k_ecc": 0.00103,

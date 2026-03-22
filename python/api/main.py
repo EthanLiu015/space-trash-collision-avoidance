@@ -46,6 +46,10 @@ from realtime_close_approaches import (  # noqa: E402
     THRESHOLD_KM,
 )
 
+# Screening: use 50 km radius to get candidates, then filter by probability > 1e-6
+SCREENING_RADIUS_KM = 50.0  # Wider spatial screen to capture pairs that may exceed prob threshold
+MIN_PROBABILITY_THRESHOLD = 0.000001  # Include pairs with collision prob > this
+
 # ---------------------------------------------------------------------------
 # Startup cache
 # ---------------------------------------------------------------------------
@@ -147,24 +151,35 @@ def _load_close_approaches_from_file() -> dict | None:
     try:
         with open(CLOSE_APPROACHES_5KM_JSON, encoding="utf-8") as f:
             data = json.load(f)
-        _add_collision_probability(data.get("pairs", []), data.get("threshold_km", THRESHOLD_KM))
+        pairs = data.get("pairs", [])
+        _add_collision_probability(pairs, data.get("threshold_km", THRESHOLD_KM))
+        pairs = [
+            p for p in pairs
+            if p.get("collision_probability") is not None and p["collision_probability"] > MIN_PROBABILITY_THRESHOLD
+        ]
+        data["pairs"] = pairs
+        data["min_probability_threshold"] = MIN_PROBABILITY_THRESHOLD
         return data
     except (json.JSONDecodeError, IOError):
         return None
 
 
 def _run_close_approach_screening() -> dict:
-    """Run SGP4 propagation + optimized close-approach screening (5 km, min 0.01 km)."""
+    """Run SGP4 propagation, screen by distance, compute probability, filter by prob > 1e-6."""
     now = datetime.now(timezone.utc)
     records = load_and_propagate(COMBINED_CSV, ref_time=now)
-    pairs = find_close_approaches_optimized(records, threshold_km=THRESHOLD_KM)
-    # Apply min distance filter (optimized fn already does this, but ensure)
-    pairs = [p for p in pairs if MIN_DISTANCE_KM < p["distance_km"] <= THRESHOLD_KM]
+    pairs = find_close_approaches_optimized(records, threshold_km=SCREENING_RADIUS_KM)
+    pairs = [p for p in pairs if MIN_DISTANCE_KM < p["distance_km"] <= SCREENING_RADIUS_KM]
     _add_collision_probability(pairs)
+    pairs = [
+        p for p in pairs
+        if p.get("collision_probability") is not None and p["collision_probability"] > MIN_PROBABILITY_THRESHOLD
+    ]
     return {
-        "threshold_km": THRESHOLD_KM,
+        "threshold_km": SCREENING_RADIUS_KM,
         "min_distance_km": MIN_DISTANCE_KM,
         "min_relative_velocity_km_s": MIN_RELATIVE_VELOCITY_KM_S,
+        "min_probability_threshold": MIN_PROBABILITY_THRESHOLD,
         "epoch_utc": now.isoformat(),
         "objects_screened": len(records),
         "close_pairs": len(pairs),
@@ -185,7 +200,7 @@ async def lifespan(app: FastAPI):
         if COMBINED_CSV.exists():
             data = _run_close_approach_screening()
         else:
-            data = {"threshold_km": THRESHOLD_KM, "min_distance_km": MIN_DISTANCE_KM, "epoch_utc": None, "pairs": []}
+            data = {"threshold_km": SCREENING_RADIUS_KM, "min_distance_km": MIN_DISTANCE_KM, "min_probability_threshold": MIN_PROBABILITY_THRESHOLD, "epoch_utc": None, "pairs": []}
     _cache["close_approaches"] = data
     yield
     _cache.clear()
@@ -231,22 +246,28 @@ def propagate_satellites():
 
     now = datetime.now(timezone.utc)
     records = load_and_propagate(COMBINED_CSV, ref_time=now)
-    pairs = find_close_approaches_optimized(records, threshold_km=THRESHOLD_KM)
-    pairs = [p for p in pairs if MIN_DISTANCE_KM < p["distance_km"] <= THRESHOLD_KM]
+    pairs = find_close_approaches_optimized(records, threshold_km=SCREENING_RADIUS_KM)
+    pairs = [p for p in pairs if MIN_DISTANCE_KM < p["distance_km"] <= SCREENING_RADIUS_KM]
     _add_collision_probability(pairs)
+    pairs = [
+        p for p in pairs
+        if p.get("collision_probability") is not None and p["collision_probability"] > MIN_PROBABILITY_THRESHOLD
+    ]
 
     close_data = {
-        "threshold_km": THRESHOLD_KM,
+        "threshold_km": SCREENING_RADIUS_KM,
         "min_distance_km": MIN_DISTANCE_KM,
         "min_relative_velocity_km_s": MIN_RELATIVE_VELOCITY_KM_S,
+        "min_probability_threshold": MIN_PROBABILITY_THRESHOLD,
         "pair_count": len(pairs),
         "pairs": pairs,
     }
     # Update in-memory cache for /collisions/alerts
     _cache["close_approaches"] = {
-        "threshold_km": THRESHOLD_KM,
+        "threshold_km": SCREENING_RADIUS_KM,
         "min_distance_km": MIN_DISTANCE_KM,
         "min_relative_velocity_km_s": MIN_RELATIVE_VELOCITY_KM_S,
+        "min_probability_threshold": MIN_PROBABILITY_THRESHOLD,
         "epoch_utc": now.isoformat(),
         "pairs": pairs,
     }
@@ -297,7 +318,7 @@ def get_collision_alerts(
     min_probability: float = Query(default=0.0, ge=0.0, le=1.0),
     max_distance_km: Optional[float] = Query(default=None),
 ):
-    """Return close-approach pairs (5 km threshold, min 0.01 km, excludes docked objects)."""
+    """Return close-approach pairs with collision probability > 1e-6."""
     data = _cache.get("close_approaches", {})
     pairs = data.get("pairs", [])
 
@@ -307,9 +328,10 @@ def get_collision_alerts(
         pairs = [p for p in pairs if p["distance_km"] <= max_distance_km]
 
     return {
-        "threshold_km": data.get("threshold_km", THRESHOLD_KM),
+        "threshold_km": data.get("threshold_km", SCREENING_RADIUS_KM),
         "min_distance_km": data.get("min_distance_km", MIN_DISTANCE_KM),
         "min_relative_velocity_km_s": data.get("min_relative_velocity_km_s", MIN_RELATIVE_VELOCITY_KM_S),
+        "min_probability_threshold": data.get("min_probability_threshold", MIN_PROBABILITY_THRESHOLD),
         "epoch_utc": data.get("epoch_utc"),
         "pair_count": len(pairs),
         "pairs": pairs,
@@ -327,6 +349,7 @@ def refresh_collision_alerts():
         "threshold_km": data["threshold_km"],
         "min_distance_km": data["min_distance_km"],
         "min_relative_velocity_km_s": data.get("min_relative_velocity_km_s", MIN_RELATIVE_VELOCITY_KM_S),
+        "min_probability_threshold": data.get("min_probability_threshold", MIN_PROBABILITY_THRESHOLD),
         "epoch_utc": data["epoch_utc"],
         "pair_count": len(data["pairs"]),
         "pairs": data["pairs"],

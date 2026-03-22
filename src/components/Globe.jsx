@@ -124,29 +124,6 @@ function Satellite({ satellite, isHighlighted, onClick, simSpeed = 60, positionO
   const meshRef = useRef()
   const scale = 1 / R_EARTH_KM
 
-  // When positionOverride is provided (e.g. from selected collision TCA), use fixed position
-  if (positionOverride && positionOverride.x_km != null && positionOverride.y_km != null && positionOverride.z_km != null) {
-    const x = positionOverride.x_km * scale
-    const y = positionOverride.y_km * scale
-    const z = positionOverride.z_km * scale
-    return (
-      <group position={[x, y, z]}>
-        <mesh>
-          <sphereGeometry args={[isHighlighted ? 0.04 : 0.015, 8, 8]} />
-          <meshBasicMaterial color={isHighlighted ? '#ffffff' : (satellite.type === 'debris' ? '#ef4444' : satellite.type === 'decaying' ? '#f97316' : '#3b82f6')} />
-        </mesh>
-        <mesh onClick={onClick}>
-          <sphereGeometry args={[0.04, 6, 6]} />
-          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
-        </mesh>
-        {isHighlighted && (
-          <pointLight color={satellite.type === 'debris' ? '#ef4444' : satellite.type === 'decaying' ? '#f97316' : '#3b82f6'} intensity={1} distance={0.35} />
-        )}
-      </group>
-    )
-  }
-
-  // Angular propagation keeps objects on orbit path (no drift)
   const angleRef = useRef((() => {
     if (satellite.x_km != null && satellite.y_km != null && satellite.z_km != null) {
       const nu = trueAnomalyFromECI(
@@ -164,6 +141,7 @@ function Satellite({ satellite, isHighlighted, onClick, simSpeed = 60, positionO
   }, [satellite.altitude])
 
   useFrame((_, delta) => {
+    if (positionOverride && positionOverride.x_km != null && positionOverride.y_km != null && positionOverride.z_km != null) return
     const next = angleRef.current + orbitalSpeed * delta * simSpeed
     angleRef.current = ((next % 360) + 360) % 360
     const [x, y, z] = orbitalToXYZ(satellite.altitude, satellite.inclination, satellite.raan, angleRef.current)
@@ -173,14 +151,34 @@ function Satellite({ satellite, isHighlighted, onClick, simSpeed = 60, positionO
   const color = satellite.type === 'debris' ? '#ef4444' : satellite.type === 'decaying' ? '#f97316' : '#3b82f6'
   const size = isHighlighted ? 0.04 : 0.015
 
+  // When positionOverride is provided (e.g. from selected collision TCA), use fixed position
+  if (positionOverride && positionOverride.x_km != null && positionOverride.y_km != null && positionOverride.z_km != null) {
+    const x = positionOverride.x_km * scale
+    const y = positionOverride.y_km * scale
+    const z = positionOverride.z_km * scale
+    return (
+      <group position={[x, y, z]}>
+        <mesh>
+          <sphereGeometry args={[size, 8, 8]} />
+          <meshBasicMaterial color={isHighlighted ? '#ffffff' : color} />
+        </mesh>
+        <mesh onClick={onClick}>
+          <sphereGeometry args={[0.04, 6, 6]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+        </mesh>
+        {isHighlighted && (
+          <pointLight color={color} intensity={1} distance={0.35} />
+        )}
+      </group>
+    )
+  }
+
   return (
     <group ref={meshRef}>
-      {/* Visible dot */}
       <mesh>
         <sphereGeometry args={[size, 8, 8]} />
         <meshBasicMaterial color={isHighlighted ? '#ffffff' : color} />
       </mesh>
-      {/* Invisible larger hit target for easier clicking */}
       <mesh onClick={onClick}>
         <sphereGeometry args={[0.04, 6, 6]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
