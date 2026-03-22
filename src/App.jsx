@@ -83,17 +83,17 @@ export default function App() {
     }
   }, [alerts, selectedAlert])
 
-  const filteredSatellites = satellites
-    .filter((sat) => {
-      if (activeTab === 'Active Satellites') return sat.type === 'active'
-      if (activeTab === 'Debris') return sat.type === 'debris'
-      return true
-    })
-    .filter((sat) => {
-      if (searchQuery === '') return true
-      const q = searchQuery.toLowerCase().trim()
-      return (sat.id ?? '').toLowerCase().includes(q) || String(sat.norad ?? '').includes(q)
-    })
+  const tabFilteredSatellites = satellites.filter((sat) => {
+    if (activeTab === 'Active Satellites') return sat.type === 'active'
+    if (activeTab === 'Debris') return sat.type === 'debris'
+    return true
+  })
+
+  const filteredSatellites = tabFilteredSatellites.filter((sat) => {
+    if (searchQuery === '') return true
+    const q = searchQuery.toLowerCase().trim()
+    return (sat.id ?? '').toLowerCase().includes(q) || String(sat.norad ?? '').includes(q)
+  })
 
   const searchedSatellite =
     selectedSearchSatellite ??
@@ -118,18 +118,17 @@ export default function App() {
 
   const globeSatellites = (() => {
     let list
-    if (activeTab !== 'All Objects') list = filteredSatellites.slice(0, MAX_GLOBE_OBJECTS)
+    if (activeTab !== 'All Objects') list = tabFilteredSatellites.slice(0, MAX_GLOBE_OBJECTS)
     else {
-      const active = filteredSatellites.filter((s) => s.type === 'active').slice(0, MAX_GLOBE_OBJECTS)
-      const debris = filteredSatellites.filter((s) => s.type === 'debris').slice(0, MAX_GLOBE_OBJECTS)
-      const decaying = filteredSatellites.filter((s) => s.type === 'decaying').slice(0, MAX_GLOBE_OBJECTS)
+      const active = tabFilteredSatellites.filter((s) => s.type === 'active').slice(0, MAX_GLOBE_OBJECTS)
+      const debris = tabFilteredSatellites.filter((s) => s.type === 'debris').slice(0, MAX_GLOBE_OBJECTS)
+      const decaying = tabFilteredSatellites.filter((s) => s.type === 'decaying').slice(0, MAX_GLOBE_OBJECTS)
       list = [...active, ...debris, ...decaying]
     }
-    if (!selectedAlert) return list
     const ids = new Set(list.map((s) => s.norad ?? s.id))
     const extras = []
-    for (const norad of [selectedAlert.noradA, selectedAlert.noradB]) {
-      if (norad == null || ids.has(norad)) continue
+    for (const norad of [selectedAlert?.noradA, selectedAlert?.noradB, searchedSatellite?.norad].filter(Boolean)) {
+      if (ids.has(norad)) continue
       const sat = satellites.find((s) => (s.norad ?? s.id) === norad)
       if (sat) {
         extras.push(sat)
@@ -239,7 +238,7 @@ export default function App() {
               <span className="flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-orange-500 inline-block" /> Decaying
               </span>
-              {!loading && <span>{filteredSatellites.length.toLocaleString()} objects</span>}
+              {!loading && <span>{tabFilteredSatellites.length.toLocaleString()} objects</span>}
             </div>
 
             <div className="absolute bottom-3 right-3 text-xs text-slate-600">
