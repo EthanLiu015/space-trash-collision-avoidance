@@ -39,8 +39,8 @@ export default function Navbar({ activeTab, onTabChange, simTime, isPlaying, onP
     <div className="flex items-center h-12 px-4 bg-space-800 border-b border-blue-900/50 gap-3 shrink-0">
       {/* Logo */}
       <div className="flex items-center gap-2 mr-2">
-        <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold">OG</div>
-        <span className="font-bold text-blue-400 text-sm tracking-wider glow-blue hidden sm:block">OrbitalGuard</span>
+        <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-xs font-bold" style={{ fontFamily: "'Orbitron', sans-serif" }}>OT</div>
+        <span className="text-blue-400 glow-blue hidden sm:block" style={{ fontFamily: "'Orbitron', sans-serif", fontSize: '1rem', fontWeight: 900, letterSpacing: '0.05em' }}>OrbiTrack</span>
       </div>
 
       {/* Tabs */}
