@@ -85,59 +85,6 @@ function AlertCard({ alert, onSelect, isSelected }) {
   )
 }
 
-function AvoidanceCard({ alert }) {
-  const prob = alert.probability
-  const newProb = prob != null ? Math.max(prob * 0.35, 0.000001) : null
-  const estimatedDeltaV = Math.max(
-    2,
-    Math.round(
-      Math.abs((alert.closestApproachKm ?? 0) - 5) * 3 +
-      Math.abs(alert.relativeVelocityKms ?? 0) * 0.8
-    )
-  )
-
-  return (
-    <div className="rounded border border-blue-800/50 bg-blue-900/10 p-3 mt-2">
-      <div className="text-xs font-semibold text-blue-300 mb-2 uppercase tracking-wider">
-        Recommended Maneuver
-      </div>
-
-      <div className="text-xs text-slate-300 space-y-1">
-        <div className="flex items-start gap-2">
-          <span className="text-green-400 mt-0.5">&#8594;</span>
-          <span>
-            Raise orbit by <strong className="text-white">+2.0 km</strong> to reduce risk from{' '}
-            <strong className="text-yellow-300 font-mono">{prob != null ? Number(prob).toFixed(6) : '—'}</strong> to{' '}
-            <strong className="text-green-400 font-mono">{newProb != null ? Number(newProb).toFixed(6) : '—'}</strong>
-          </span>
-        </div>
-
-        <div className="flex items-start gap-2">
-          <span className="text-blue-400 mt-0.5">&Delta;v</span>
-          <span>
-            Estimated &Delta;v: <strong className="text-white">{estimatedDeltaV} m/s</strong>
-          </span>
-        </div>
-
-        <div className="flex items-start gap-2">
-          <span className="text-yellow-400 mt-0.5">&#9201;</span>
-          <span>
-            Recommended action window: <strong className="text-white">within 10–20 min</strong>
-          </span>
-        </div>
-      </div>
-
-      <button className="mt-2 w-full text-xs bg-green-700 hover:bg-green-600 text-white rounded py-1.5 transition-colors font-semibold">
-        Execute Maneuver
-      </button>
-
-      <button className="mt-1 w-full text-xs border border-blue-700 hover:bg-blue-900/40 text-blue-300 rounded py-1.5 transition-colors">
-        Explain with AI
-      </button>
-    </div>
-  )
-}
-
 export default function CollisionAlerts({ alerts, live, selectedAlert, onSelectAlert }) {
   return (
     <div className="w-72 shrink-0 flex flex-col bg-space-800 border-l border-blue-900/40 overflow-hidden">
@@ -173,9 +120,6 @@ export default function CollisionAlerts({ alerts, live, selectedAlert, onSelectA
             />
           ))
         )}
-
-        {/* Avoidance recommendation for selected alert */}
-        {selectedAlert && <AvoidanceCard alert={selectedAlert} />}
       </div>
 
       {/* Summary footer */}
