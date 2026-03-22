@@ -55,7 +55,7 @@ const CustomTooltip = ({ active, payload, label, unit }) => {
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 // Inner component — only mounts when selectedSat is defined, so hooks are safe
-function PredictionAnalysisInner({ selectedSat, satellites }) {
+function PredictionAnalysisInner({ selectedSat, satellites, selectedAlert, onClose }) {
   const { closestSat, distanceData, relativeVelocity } = useMemo(() => {
     const sx = selectedSat.x_km ?? 0
     const sy = selectedSat.y_km ?? 0
@@ -130,11 +130,12 @@ function PredictionAnalysisInner({ selectedSat, satellites }) {
     <div className="h-48 shrink-0 bg-space-900 border-t border-blue-900/40 px-4 py-2">
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold text-slate-300 uppercase tracking-widest">Prediction Analysis</span>
-        <div className="flex gap-2 text-xs">
+        <div className="flex items-center gap-3 text-xs">
           <span className="text-slate-500">Pair:</span>
           <span className="text-blue-300 font-mono truncate max-w-xs">
             {selectedSat.id}{closestSat ? ` vs ${closestSat.id}` : ''}
           </span>
+          <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors ml-1">&#10005;</button>
         </div>
       </div>
 
@@ -195,7 +196,7 @@ function PredictionAnalysisInner({ selectedSat, satellites }) {
   )
 }
 
-export default function PredictionAnalysis({ selectedSat, satellites }) {
+export default function PredictionAnalysis({ selectedSat, satellites, selectedAlert, onClose }) {
   if (!selectedSat || !satellites?.length) return null
-  return <PredictionAnalysisInner selectedSat={selectedSat} satellites={satellites} />
+  return <PredictionAnalysisInner selectedSat={selectedSat} satellites={satellites} selectedAlert={selectedAlert} onClose={onClose} />
 }

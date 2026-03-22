@@ -20,6 +20,7 @@ export default function App() {
   const [selectedSat, setSelectedSat] = useState(null)
   const [selectedAlert, setSelectedAlert] = useState(null)
   const [showManeuver, setShowManeuver] = useState(false)
+  const [showPrediction, setShowPrediction] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedSearchSatellite, setSelectedSearchSatellite] = useState(null)
   const [satellites, setSatellites] = useState([])
@@ -193,7 +194,7 @@ export default function App() {
               alerts={alerts}
               highlightedNoradIds={highlightedNoradIds}
               collisionPositionOverrides={collisionPositionOverrides}
-              onSelectSat={setSelectedSat}
+              onSelectSat={(sat) => { setSelectedSat(sat); setShowPrediction(true) }}
               isPlaying={isPlaying}
               simSpeed={simSpeed}
               activeTab={activeTab}
@@ -248,7 +249,7 @@ export default function App() {
             </div>
           </div>
 
-          <PredictionAnalysis selectedSat={selectedSat} satellites={satellites} selectedAlert={selectedAlert} />
+          {showPrediction && <PredictionAnalysis selectedSat={selectedSat} satellites={satellites} selectedAlert={selectedAlert} onClose={() => setShowPrediction(false)} />}
           {showManeuver && selectedAlert && (
             <ManeuverSimulator selectedAlert={selectedAlert} onClose={() => setShowManeuver(false)} />
           )}
